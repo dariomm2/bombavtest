@@ -1,0 +1,69 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Validate SemVer tag
+        shell: bash
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag inválido: ${GITHUB_REF_NAME}. Se exige vX.Y.Z."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Railway CLI
+        shell: bash
+        run: |
+          bash <(curl -fsSL railway.com/install.sh) -y
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+          "$HOME/.railway/bin/railway" --version
+
+      - name: Inject release metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          dockerfile = Path("Dockerfile")
+          text = dockerfile.read_text()
+
+          text = text.replace(
+              "ARG BOMBAVTEST_VERSION=dev",
+              f"ARG BOMBAVTEST_VERSION={os.environ['GITHUB_REF_NAME']}",
+          )
+
+          text = text.replace(
+              "ARG BOMBAVTEST_REVISION=unknown",
+              f"ARG BOMBAVTEST_REVISION={os.environ['GITHUB_SHA']}",
+          )
+
+          dockerfile.write_text(text)
+          PY
+
+      - name: Deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+          RAILWAY_ENVIRONMENT: ${{ secrets.RAILWAY_ENVIRONMENT }}
+        run: |
+          railway up --ci \
+            --project "$RAILWAY_PROJECT_ID" \
+            --service "$RAILWAY_SERVICE" \
+            --environment "$RAILWAY_ENVIRONMENT"

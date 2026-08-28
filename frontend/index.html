@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title>BombAvTest</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <section class="login-shell" id="loginView" hidden>
+    <div class="login-card">
+      <div class="login-brand">BombAv<span>Test</span></div>
+      <h1>Bienvenido</h1>
+      <form id="loginForm" autocomplete="on">
+        <label class="field">
+          <span>Usuario</span>
+          <input id="loginUsername" name="username" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <span class="password-input-wrap">
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            <button class="password-toggle" id="loginPasswordToggle" type="button" aria-label="Mostrar contraseña" aria-pressed="false">
+              <svg class="password-eye-open" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.8 12s3.4-6 9.2-6 9.2 6 9.2 6-3.4 6-9.2 6S2.8 12 2.8 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.8"/></svg>
+              <svg class="password-eye-closed" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 4 16 16M9.8 6.3A9.7 9.7 0 0 1 12 6c5.8 0 9.2 6 9.2 6a14.8 14.8 0 0 1-2.4 3.1M6.1 7.6C4 9.3 2.8 12 2.8 12s3.4 6 9.2 6c1.2 0 2.3-.3 3.3-.7M10.1 10.1a2.7 2.7 0 0 0 3.8 3.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </span>
+        </label>
+        <div class="form-error" id="loginError" role="alert"></div>
+        <button class="btn btn-primary login-submit" type="submit" id="loginSubmit" disabled>Iniciar sesión</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <header class="topbar" id="topbar">
+      <a class="brand" href="/" data-nav="home" aria-label="Ir al inicio">
+        <span class="brand-name">BombAv<span>Test</span></span>
+      </a>
+
+      <nav class="nav-center" aria-label="Navegación principal">
+        <button class="nav-link active" type="button" data-nav="home">
+          <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3.8 10.7L12 4l8.2 6.7v8a1.3 1.3 0 0 1-1.3 1.3H5.1a1.3 1.3 0 0 1-1.3-1.3v-8Z" stroke="currentColor" stroke-width="1.8"/><path d="M9.2 20v-6.2h5.6V20" stroke="currentColor" stroke-width="1.8"/></svg>
+          Inicio
+        </button>
+        <button class="nav-link" type="button" data-nav="stats">
+          <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M5 20V10m7 10V4m7 16v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Estadísticas
+        </button>
+        <button class="nav-link" id="adminNavBtn" type="button" data-nav="admin" hidden>
+          <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 3 4.5 6v5.2c0 4.6 3.2 7.7 7.5 9.8 4.3-2.1 7.5-5.2 7.5-9.8V6L12 3Z" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 12.2 11 13.7l3.6-3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Administración
+        </button>
+      </nav>
+
+      <label class="question-switch" id="questionModeControl" title="Se omiten las preguntas que ya has acertado">
+        <span class="question-switch-label" id="questionModeLabel">Solo pendientes y falladas</span>
+        <span class="switch">
+          <input id="repeatCorrect" type="checkbox">
+          <span class="switch-track"></span>
+        </span>
+      </label>
+
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Activar modo oscuro" title="Cambiar tema">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.5 15.2A8.4 8.4 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <section id="homeView" class="view active" aria-labelledby="homeTitle">
+        <div class="hero">
+          <article class="hero-main">
+            <button class="hero-logout" id="logoutBtn" type="button">Cerrar sesión</button>
+            <div class="hero-copy">
+              <h1 id="homeTitle">Hola.</h1>
+            </div>
+            <div class="hero-actions hero-actions-two">
+              <button class="btn btn-primary" id="playAllBtn" type="button">
+                <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="m9 7 8 5-8 5V7Z" fill="currentColor"/></svg>
+                Practicar por temas
+              </button>
+              <button class="btn btn-secondary" id="startTopicExamBtn" type="button">
+                <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M7 3h10v4H7V3Z" stroke="currentColor" stroke-width="1.8"/><path d="M5 5h14v16H5V5Z" stroke="currentColor" stroke-width="1.8"/></svg>
+                Simulacro por temas
+              </button>
+            </div>
+          </article>
+
+          <aside class="activity-card" aria-label="Actividad de las últimas cuatro semanas">
+            <div class="activity-summary">
+              <div>
+                <div class="activity-total-label">Preguntas respondidas en total</div>
+                <div class="activity-total" id="totalAnsweredValue">0</div>
+              </div>
+            </div>
+            <div class="heatmap-wrap">
+              <div class="calendar-heatmap" id="homeHeatmap"></div>
+              <div class="calendar-range" id="homeHeatmapRange"></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="section-title-row section-title-simple">
+          <h2>Progreso por tema</h2>
+        </div>
+        <div class="topics-grid" id="topicsGrid"></div>
+      </section>
+
+      <section id="questionView" class="view" aria-labelledby="questionTitle">
+        <div class="question-page-layout" id="questionPageLayout">
+          <div class="question-view-wrap">
+            <div class="question-toolbar">
+              <button class="btn btn-secondary btn-small" id="exitQuestionBtn" type="button">
+                <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Salir
+              </button>
+              <div class="question-chips">
+                <span class="mode-chip" id="questionModeChip">Práctica</span>
+              </div>
+            </div>
+
+            <div class="question-progress" id="questionProgress" hidden>
+              <div class="question-progress-top">
+                <span id="questionCounter">Pregunta 1 de 30</span>
+                <span id="questionSessionScore">0 respondidas</span>
+              </div>
+              <div class="progress-track"><span id="questionProgressBar" style="width: 3.33%"></span></div>
+            </div>
+
+            <article class="question-card">
+              <div class="question-card-meta" id="questionTopicMeta">
+                <span class="topic-chip question-card-topic" id="questionTopicChip">Todos los temas</span>
+              </div>
+              <h2 class="question-title" id="questionTitle">Cargando pregunta…</h2>
+              <div class="answers" id="answersContainer"></div>
+              <div class="feedback" id="questionFeedback"></div>
+              <div class="question-footer">
+                <button class="btn btn-primary" id="nextQuestionBtn" type="button" disabled>
+                  Siguiente
+                  <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <aside class="panel exam-nav-card" id="examNavCard" hidden aria-label="Navegación del simulacro">
+            <div class="exam-nav-grid" id="examNavGrid"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="reviewView" class="view" aria-labelledby="reviewTitle">
+        <div class="review-topbar">
+          <h1 id="reviewTitle">Simulacro finalizado</h1>
+          <div class="review-actions">
+            <button class="btn btn-secondary btn-small" id="reviewStatsBtn" type="button">Ver estadísticas</button>
+            <button class="btn btn-primary btn-small" id="reviewHomeBtn" type="button">Volver al inicio</button>
+          </div>
+        </div>
+
+        <div class="review-summary-grid" id="reviewSummary"></div>
+
+        <div class="review-layout">
+          <aside class="panel exam-nav-card review-nav-card" id="reviewNavCard" aria-label="Navegación de la revisión">
+            <div class="exam-nav-grid review-nav-grid" id="reviewNavGrid"></div>
+          </aside>
+          <div class="review-list" id="reviewList"></div>
+        </div>
+      </section>
+
+      <section id="statsView" class="view" aria-labelledby="statsTitle">
+        <div class="stats-header stats-header-simple">
+          <h1 id="statsTitle">Estadísticas</h1>
+        </div>
+
+        <div class="admin-tabs stats-mode-tabs" id="statsScopeTabs" role="tablist" aria-label="Ámbito de estadísticas" hidden>
+          <button class="admin-tab active" type="button" data-stats-scope="self">Mis estadísticas</button>
+          <button class="admin-tab" type="button" data-stats-scope="student">Un alumno</button>
+          <button class="admin-tab" type="button" data-stats-scope="all">Todos los alumnos</button>
+        </div>
+
+        <div id="statsUserPicker" class="stats-student-narrow" hidden>
+          <article class="panel stats-student-picker-card">
+            <label class="admin-search admin-control-field stats-student-search">
+              <span>Alumno</span>
+              <div class="admin-search-box">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input id="statsUserSearch" type="search" autocomplete="off" placeholder="Buscar por nombre o usuario" aria-label="Buscar alumno">
+              </div>
+            </label>
+            <div class="stats-student-results" id="statsUserResults" role="list"></div>
+          </article>
+        </div>
+
+        <article class="panel stats-selected-student-card stats-student-narrow" id="statsSelectedUserCard" hidden>
+          <div class="stats-selected-student-main">
+            <span class="admin-user-avatar" id="statsSelectedUserAvatar">A</span>
+            <div class="stats-selected-student-copy">
+              <strong id="statsSelectedUserName">Alumno</strong>
+              <span id="statsSelectedUserMeta">@usuario</span>
+            </div>
+            <span class="status-badge" id="statsSelectedUserStatus">Activo</span>
+          </div>
+          <button class="btn btn-secondary btn-small" type="button" data-stats-change-user>Cambiar alumno</button>
+        </article>
+
+        <div id="statsContent">
+          <div id="statsSummary"></div>
+
+          <div class="stats-grid">
+            <article class="panel chart-panel stats-bar-panel">
+              <div class="panel-head"><h3 id="topicBarTitle">Preguntas respondidas por tema</h3></div>
+              <div class="topic-metric-chart" id="topicBarChart"></div>
+            </article>
+
+            <article class="panel chart-panel stats-bar-panel">
+              <div class="panel-head"><h3 id="topicAccuracyBarTitle">Porcentaje de acierto por tema</h3></div>
+              <div class="topic-metric-chart" id="topicAccuracyBarChart"></div>
+            </article>
+
+            <article class="panel chart-panel wide" id="progressChartPanel">
+              <div class="panel-head">
+                <h3 id="progressChartTitle">Aciertos acumulados</h3>
+                <span class="topic-select-control"><span class="topic-select-dot" aria-hidden="true"></span><select class="select topic-aware-select" id="progressTopicSelect" aria-label="Filtrar aciertos por tema"></select></span>
+              </div>
+              <div class="chart-wrap" id="progressChart"></div>
+            </article>
+
+            <article class="panel chart-panel wide" id="winrateChartPanel">
+              <div class="panel-head">
+                <div><h3 id="winrateChartTitle">Porcentaje de acierto reciente</h3><p class="muted" id="winrateWindowLabel">Media móvil de 30 preguntas</p></div>
+                <span class="topic-select-control"><span class="topic-select-dot" aria-hidden="true"></span><select class="select topic-aware-select" id="winrateTopicSelect" aria-label="Filtrar porcentaje de acierto por tema"></select></span>
+              </div>
+              <div class="chart-wrap" id="winrateChart"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminView" class="view" aria-labelledby="adminTitle">
+        <div class="admin-header admin-header-simple">
+          <h1 id="adminTitle">Administración</h1>
+          <button class="btn btn-primary btn-small" id="adminCreateBtn" type="button">Nuevo tema</button>
+        </div>
+
+        <div class="admin-tabs" role="tablist" aria-label="Secciones de administración">
+          <button class="admin-tab active" type="button" data-admin-tab="topics">Temas</button>
+          <button class="admin-tab" type="button" data-admin-tab="questions">Preguntas</button>
+          <button class="admin-tab" type="button" data-admin-tab="users">Usuarios</button>
+        </div>
+
+        <article class="panel admin-controls-panel">
+          <div class="admin-tools">
+            <label class="admin-search admin-control-field">
+              <span id="adminSearchLabel">Nombre</span>
+              <div class="admin-search-box">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input id="adminSearch" type="search" placeholder="Buscar temas" autocomplete="off" aria-label="Buscar en el listado">
+              </div>
+            </label>
+            <div class="admin-filter-group" id="adminFilters"></div>
+          </div>
+        </article>
+
+        <article class="panel admin-table-panel">
+          <div class="admin-table-toolbar">
+            <span class="admin-result-count" id="adminResultCount">0 temas</span>
+            <button class="btn btn-secondary btn-small admin-export-btn" id="adminExportBtn" type="button">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v3h14v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Exportar CSV
+            </button>
+          </div>
+          <div class="admin-list" id="adminList"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <section class="legal-shell" id="legalShell" hidden>
+    <div class="legal-page">
+      <div class="legal-page-head">
+        <button class="legal-back" id="legalBackBtn" type="button" aria-label="Volver a la página anterior">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Volver
+        </button>
+        <div class="legal-brand" aria-label="BombAvTest">BombAv<span>Test</span></div>
+      </div>
+      <article class="legal-document" id="legalNoticeView" hidden>
+<h1>Aviso Legal</h1>
+<h2>1. Titular del servicio</h2>
+<p>En cumplimiento de la Ley 34/2002, de 11 de julio, de servicios de la sociedad de la información y de comercio electrónico, se informa de los datos identificativos del titular de BombAvTest:</p>
+<p><strong>Titular:</strong> Ricardo Magariño Manteca<br><strong>NIF:</strong> 51095882W<br><strong>Domicilio:</strong> Avenida de la Constitución 4, 05194 Mediana de Voltoya, Ávila, España<br><strong>Correo electrónico:</strong> rikimdv@gmail.com</p>
+<h2>2. Objeto del servicio</h2>
+<p>BombAvTest es una plataforma de apoyo a la preparación de oposiciones de bombero que permite a usuarios autorizados realizar preguntas, prácticas y simulacros, así como consultar sus resultados, progreso y estadísticas.</p>
+<p>El acceso está reservado a usuarios autorizados por el titular. Las cuentas son creadas y administradas desde la propia plataforma. BombAvTest está dirigido a personas mayores de edad.</p>
+<h2>3. Contacto</h2>
+<p>Para cualquier consulta relacionada con BombAvTest o con el titular del servicio puede utilizarse el correo electrónico <strong>rikimdv@gmail.com</strong>.</p>
+      </article>
+      <article class="legal-document" id="privacyPolicyView" hidden>
+<h1>Política de Privacidad</h1>
+<h2>1. Responsable del tratamiento</h2>
+<p><strong>Responsable:</strong> Ricardo Magariño Manteca<br><strong>NIF:</strong> 51095882W<br><strong>Domicilio:</strong> Avenida de la Constitución 4, 05194 Mediana de Voltoya, Ávila, España<br><strong>Correo electrónico:</strong> rikimdv@gmail.com</p>
+<h2>2. Datos personales tratados</h2>
+<p>BombAvTest trata únicamente los datos necesarios para gestionar el acceso y el uso de la plataforma:</p>
+<ul>
+<li>Nombre y apellidos y nombre de usuario.</li>
+<li>Credenciales de acceso, almacenando la contraseña mediante un mecanismo criptográfico y no en texto plano.</li>
+<li>Respuestas seleccionadas, resultados, progreso, simulacros, estadísticas y fechas asociadas a la actividad del usuario.</li>
+<li>Datos técnicos de sesión estrictamente necesarios para mantener el acceso y la seguridad de la plataforma.</li>
+</ul>
+<p>BombAvTest no está diseñado para recoger categorías especiales de datos personales.</p>
+<h2>3. Procedencia de los datos</h2>
+<p>Los datos identificativos y de cuenta son incorporados por personal autorizado al crear o gestionar la cuenta. Los datos de respuestas, resultados, progreso y estadísticas se generan mediante el uso de BombAvTest por el propio usuario.</p>
+<h2>4. Finalidades</h2>
+<p>Los datos se utilizan para crear y gestionar las cuentas, permitir el acceso a BombAvTest, posibilitar la realización de prácticas y simulacros, guardar las respuestas y resultados y calcular y mostrar el progreso y las estadísticas del usuario.</p>
+<p>No se utilizan los datos para publicidad ni para el envío de comunicaciones comerciales.</p>
+<h2>5. Base jurídica</h2>
+<p>La base jurídica principal es la ejecución de la relación de prestación de servicios formativos de la que BombAvTest forma parte, de acuerdo con el artículo 6.1.b) del Reglamento (UE) 2016/679 (RGPD), al ser el tratamiento necesario para proporcionar al usuario las funcionalidades de la plataforma.</p>
+<h2>6. Conservación y eliminación</h2>
+<p>Los datos se conservan mientras la cuenta exista y sean necesarios para prestar el servicio. Dar de baja una cuenta impide su acceso, pero sus datos pueden mantenerse hasta que el administrador proceda a su eliminación definitiva.</p>
+<p>Cuando un usuario es eliminado definitivamente desde BombAvTest, se eliminan su cuenta y el historial personal asociado almacenado por la aplicación. Si existiera una obligación legal que exigiera conservar determinada información durante más tiempo, se conservaría únicamente durante el plazo legalmente exigible y con las limitaciones correspondientes.</p>
+<h2>7. Destinatarios y proveedores</h2>
+<p>Los datos pueden ser accesibles por el propio usuario, por el personal autorizado que administra BombAvTest y por los proveedores tecnológicos estrictamente necesarios para prestar el servicio.</p>
+<p><strong>Proveedor de alojamiento y almacenamiento:</strong> Railway Corporation, utilizado para alojar la aplicación, la base de datos en un volumen persistente y los archivos adjuntos en almacenamiento de objetos S3 compatible.</p>
+<p>No se comunican datos personales a otros terceros salvo obligación legal.</p>
+<h2>8. Transferencias internacionales</h2>
+<p>El uso de Railway puede implicar tratamientos o transferencias de datos personales a Estados Unidos. Railway informa de que sus operaciones principales se realizan en Estados Unidos y contempla, según corresponda, mecanismos como el EU-U.S. Data Privacy Framework y las cláusulas contractuales tipo incorporadas a su acuerdo de tratamiento de datos para ofrecer las garantías exigidas por la normativa aplicable.</p>
+<h2>9. Derechos</h2>
+<p>El usuario puede ejercer, cuando corresponda, sus derechos de acceso, rectificación, supresión, limitación, oposición y portabilidad dirigiéndose a <strong>rikimdv@gmail.com</strong> o por escrito a <strong>Avenida de la Constitución 4, 05194 Mediana de Voltoya, Ávila, España</strong>.</p>
+<p>Cuando existan dudas razonables sobre la identidad del solicitante podrá pedirse la información estrictamente necesaria para verificarla. El interesado también puede presentar una reclamación ante la Agencia Española de Protección de Datos.</p>
+<h2>10. Decisiones automatizadas</h2>
+<p>BombAvTest calcula automáticamente resultados, porcentajes y estadísticas a partir de las respuestas realizadas. Estos cálculos son informativos y no se utilizan para adoptar decisiones automatizadas que produzcan efectos jurídicos sobre el usuario o le afecten significativamente de modo similar.</p>
+<h2>11. Cookies y almacenamiento técnico</h2>
+<p>BombAvTest utiliza únicamente los mecanismos técnicos necesarios para mantener la sesión y recordar determinadas preferencias de funcionamiento. No utiliza herramientas de analítica, publicidad o seguimiento de terceros.</p>
+<h2>12. Menores de edad</h2>
+<p>BombAvTest está destinado a personas mayores de 18 años que preparan oposiciones de bombero y no está dirigido a menores de edad.</p>
+<h2>13. Seguridad y actualización</h2>
+<p>El responsable aplicará medidas técnicas y organizativas razonables para proteger los datos personales frente a accesos no autorizados, pérdida, alteración o divulgación indebida.</p>
+<p>Esta Política de Privacidad podrá actualizarse cuando cambie el funcionamiento de BombAvTest, los proveedores utilizados o las obligaciones legales aplicables.</p>
+<p><strong>Última actualización:</strong> 27 de agosto de 2026.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer class="site-footer" id="siteFooter" hidden>
+    <nav class="site-footer-nav" aria-label="Información legal">
+      <button type="button" data-legal-page="notice">Aviso Legal</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" data-legal-page="privacy">Política de Privacidad</button>
+      <span aria-hidden="true">·</span>
+      <span class="site-footer-version" id="appVersion" title="Versión de BombAvTest">dev</span>
+    </nav>
+  </footer>
+
+  <div class="modal-backdrop" id="examIntroModal" role="dialog" aria-modal="true" aria-labelledby="examIntroTitle">
+    <div class="modal exam-config-modal modal-scroll-shell" data-scroll-fade-shell>
+      <button class="modal-close modal-close-danger modal-close-corner" type="button" data-close-modal="examIntroModal" aria-label="Cerrar">×</button>
+      <div class="modal-scroll-area" data-scroll-fade-area tabindex="0">
+      <div class="modal-icon" id="sessionConfigIcon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M7 3h10v4H7V3Z" stroke="currentColor" stroke-width="1.8"/><path d="M5 5h14v16H5V5Z" stroke="currentColor" stroke-width="1.8"/></svg>
+      </div>
+      <p class="eyebrow" id="sessionConfigEyebrow">Modo simulacro</p>
+      <h2 id="examIntroTitle">Configura el simulacro</h2>
+      <p class="muted exam-config-copy" id="sessionConfigCopy">Las respuestas se corregirán al finalizar y las preguntas sin marcar contarán como no respondidas.</p>
+
+      <div class="exam-config-section" id="examCountSection">
+        <div class="exam-config-head exam-count-head">
+          <label for="examQuestionCount">Número de preguntas</label>
+        </div>
+        <div class="exam-count-row">
+          <div class="exam-count-presets" id="examCountPresets" aria-label="Cantidades rápidas">
+            <button type="button" data-exam-count="10">10</button>
+            <button type="button" data-exam-count="20">20</button>
+            <button type="button" class="active" data-exam-count="30">30</button>
+            <button type="button" data-exam-count="40">40</button>
+            <button type="button" data-exam-count="50">50</button>
+          </div>
+          <label class="exam-count-input-wrap">
+            <span class="sr-only">Personalizado</span>
+            <input id="examQuestionCount" type="text" value="" placeholder="Personalizado..." inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Número personalizado de preguntas">
+          </label>
+        </div>
+      </div>
+
+      <div class="exam-config-section" id="examTopicsSection">
+        <div class="exam-config-head exam-topics-head">
+          <label>Temas incluidos</label>
+          <div class="exam-topic-actions">
+            <button class="exam-topic-bulk-btn" id="examSelectAllTopicsBtn" type="button">Seleccionar todos</button>
+            <button class="exam-topic-bulk-btn" id="examDeselectAllTopicsBtn" type="button">Deseleccionar todos</button>
+          </div>
+        </div>
+        <div class="exam-topic-picker" id="examTopicPicker"></div>
+      </div>
+
+      <div class="form-error" id="examConfigError" role="alert"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" data-close-modal="examIntroModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" id="confirmExamBtn">Empezar simulacro</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="adminEditorModal" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+    <div class="modal admin-modal modal-scroll-shell" data-scroll-fade-shell>
+      <div class="modal-scroll-area" data-scroll-fade-area tabindex="0">
+      <div class="admin-modal-head">
+        <div>
+          <p class="eyebrow" id="adminModalEyebrow">Administración</p>
+          <h2 id="adminModalTitle">Nuevo tema</h2>
+        </div>
+        <button class="modal-close modal-close-danger" type="button" data-close-modal="adminEditorModal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="adminForm">
+        <div class="admin-form-fields" id="adminFormFields"></div>
+        <div class="form-error" id="adminFormError" role="alert"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="adminEditorModal">Cancelar</button>
+          <button class="btn btn-primary" type="submit" id="adminSaveBtn">Guardar</button>
+        </div>
+      </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="adminDeleteModal" role="dialog" aria-modal="true" aria-labelledby="adminDeleteTitle">
+    <div class="modal admin-delete-modal">
+      <div class="modal-icon danger-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5M14 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <p class="eyebrow">Eliminar</p>
+      <h2 id="adminDeleteTitle">Eliminar elemento</h2>
+      <p class="muted" id="adminDeleteText">Esta acción dejará de mostrar el elemento en la aplicación.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" data-close-modal="adminDeleteModal">Cancelar</button>
+        <button class="btn btn-danger" type="button" id="adminConfirmDeleteBtn">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/version.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>
