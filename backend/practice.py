@@ -299,6 +299,23 @@ def practice_question():
         return api_ok(questions[0])
     return api_ok({"questions": questions})
 
+
+@router.get("/api/practice/preload")
+@require_auth
+def practice_preload():
+    mode = request.args.get("mode", "pending")
+    if mode not in {"pending", "all"}:
+        return api_error("Filtro de preguntas no válido.")
+
+    previews = []
+    for topic_id in current_topic_ids():
+        questions = practice_questions_for_topics([topic_id], mode, [], 1)
+        if questions:
+            previews.append(questions[0])
+
+    return api_ok({"questions": previews})
+
+
 def practice_questions_for_topics(
     topic_ids: list[int],
     mode: str,
