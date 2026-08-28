@@ -40,6 +40,13 @@ let usernameSuggestionSeq = 0;
 let attachmentUploadSeq = 0;
 const byId = id => document.getElementById(id);
 const backgroundWrites = new Set();
+const practicePreload = {
+  mode: null,
+  ready: false,
+  questionsByTopic: new Map(),
+  promise: null,
+  generation: 0
+};
 
 function trackBackgroundWrite(promise) {
   backgroundWrites.add(promise);
@@ -327,6 +334,104 @@ function preparePracticeFeedback(question) {
   };
 }
 
+function currentPracticeMode() {
+  return byId('repeatCorrect')?.checked ? 'all' : 'pending';
+}
+
+function resetPracticePreload() {
+  practicePreload.generation += 1;
+  practicePreload.mode = null;
+  practicePreload.ready = false;
+  practicePreload.questionsByTopic = new Map();
+  practicePreload.promise = null;
+}
+
+function practiceEntryFromQuestion(question) {
+  if (!question) return null;
+  return {
+    question: { ...question, submissionKey: newSubmissionKey() },
+    feedback: preparePracticeFeedback(question)
+  };
+}
+
+async function primePracticePreload() {
+  if (!state.user) return;
+  const mode = currentPracticeMode();
+  if (practicePreload.mode === mode && (practicePreload.ready || practicePreload.promise)) {
+    return practicePreload.promise;
+  }
+
+  const generation = practicePreload.generation + 1;
+  practicePreload.generation = generation;
+  practicePreload.mode = mode;
+  practicePreload.ready = false;
+  practicePreload.questionsByTopic = new Map();
+
+  const promise = api(`/api/practice/preload?mode=${encodeURIComponent(mode)}`)
+    .then(data => {
+      if (practicePreload.generation !== generation || practicePreload.mode !== mode) return;
+      const entries = new Map();
+      (data?.questions || []).forEach(question => {
+        const topicId = Number(question?.topic?.id);
+        if (Number.isFinite(topicId)) entries.set(topicId, question);
+      });
+      practicePreload.questionsByTopic = entries;
+      practicePreload.ready = true;
+    })
+    .catch(error => {
+      if (error.status !== 401) console.warn('No se pudo precargar la práctica:', error.message);
+    })
+    .finally(() => {
+      if (practicePreload.generation === generation) practicePreload.promise = null;
+    });
+
+  practicePreload.promise = promise;
+  return promise;
+}
+
+function practiceAvailableCount(topicIds) {
+  const selected = new Set((topicIds || []).map(Number));
+  return (state.home?.topics || [])
+    .filter(topic => selected.has(Number(topic.id)))
+    .reduce((sum, topic) => sum + practiceTopicAvailableCount(topic), 0);
+}
+
+function practiceTopicAvailableCount(topic) {
+  const total = Math.max(0, Number(topic?.total) || 0);
+  if (currentPracticeMode() === 'all') return total;
+  const correct = Math.max(0, Number(topic?.correct) || 0);
+  return Math.max(0, total - correct);
+}
+
+async function preloadedPracticeEntry(topicIds) {
+  const mode = currentPracticeMode();
+  if (practicePreload.mode !== mode || (!practicePreload.ready && !practicePreload.promise)) {
+    resetPracticePreload();
+    await primePracticePreload();
+  } else if (practicePreload.promise) {
+    await practicePreload.promise;
+  }
+
+  if (!practicePreload.ready || practicePreload.mode !== mode) return null;
+  const candidates = (topicIds || [])
+    .map(Number)
+    .filter(Number.isFinite)
+    .map(topicId => {
+      const question = practicePreload.questionsByTopic.get(topicId);
+      const topic = state.home?.topics?.find(item => Number(item.id) === topicId);
+      return { question, weight: practiceTopicAvailableCount(topic) };
+    })
+    .filter(item => item.question && item.weight > 0);
+  if (!candidates.length) return null;
+  const totalWeight = candidates.reduce((sum, item) => sum + item.weight, 0);
+  let target = Math.random() * totalWeight;
+  for (const item of candidates) {
+    target -= item.weight;
+    if (target < 0) return practiceEntryFromQuestion(item.question);
+  }
+  return practiceEntryFromQuestion(candidates[candidates.length - 1].question);
+}
+
 
 function safeStorageGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -515,6 +620,7 @@ function resetStatsWorkspace() {
 
 
 function showLogin() {
+  resetPracticePreload();
   state.user = null;
   state.csrf = null;
   state.home = null;
@@ -654,7 +760,10 @@ async function setView(view, push = true) {
 }
 
 async function loadHome() {
+  const refreshPracticePreload = !state.home;
   if (!state.home) renderHomeSkeleton();
+  if (refreshPracticePreload) resetPracticePreload();
+  void primePracticePreload();
   try {
     state.home = await api('/api/home');
     renderHome();
@@ -756,20 +865,42 @@ async function startPractice(topicIds = []) {
   const normalized = Array.isArray(topicIds)
     ? [...new Set(topicIds.map(Number).filter(Number.isFinite))]
     : topicIds ? [Number(topicIds)] : [];
+
+  if (!normalized.length || practiceAvailableCount(normalized) === 0) {
+    showToast('No quedan preguntas disponibles con este filtro.');
+    return;
+  }
+
+  let firstEntry = await preloadedPracticeEntry(normalized);
+  if (!firstEntry) {
+    const preloadSession = { mode: 'practice', topicIds: normalized };
+    try {
+      [firstEntry] = await fetchPracticeQuestions(preloadSession, 1, []);
+    } catch (error) {
+      if (error.status !== 401) showToast(error.message);
+      return;
+    }
+  }
+  if (!firstEntry) {
+    showToast('No quedan preguntas disponibles con este filtro.');
+    return;
+  }
+
   state.session = {
     mode: 'practice',
     topicIds: normalized,
-    currentQuestion: null,
+    currentQuestion: firstEntry.question,
     previousQuestionId: null,
     selectedOptionId: null,
-    localFeedback: null,
+    localFeedback: firstEntry.feedback,
     locked: false,
     submitting: false,
     prefetchQueue: [],
     prefetchPromise: null
   };
   await setView('question', true);
-  await loadPracticeQuestion();
+  renderQuestion();
+  replenishPracticeBuffer();
 }
 
 function practiceRequestParams(session, count = 1, excludeIds = []) {
@@ -785,10 +916,7 @@ function practiceRequestParams(session, count = 1, excludeIds = []) {
 async function fetchPracticeQuestions(session, count = 1, excludeIds = []) {
   const data = await api(`/api/practice/question?${practiceRequestParams(session, count, excludeIds)}`);
   const questions = Array.isArray(data?.questions) ? data.questions : data ? [data] : [];
-  return questions.map(question => ({
-    question: { ...question, submissionKey: newSubmissionKey() },
-    feedback: preparePracticeFeedback(question)
-  }));
+  return questions.map(practiceEntryFromQuestion).filter(Boolean);
 }
 
 function setCurrentPracticeEntry(entry) {
@@ -829,35 +957,6 @@ async function replenishPracticeBuffer() {
     });
   session.prefetchPromise = promise;
   trackBackgroundWrite(promise);
-}
-
-async function loadPracticeQuestion() {
-  const session = state.session;
-  if (!session || session.mode !== 'practice') return;
-  renderQuestionSkeleton();
-  byId('questionFeedback').className = 'feedback';
-  byId('questionFeedback').innerHTML = '';
-  byId('nextQuestionBtn').disabled = true;
-
-  try {
-    // Prime current + two future questions in one request. The visible practice
-    // session therefore starts with an actual frontend buffer instead of waiting
-    // until the user asks for the next question.
-    const entries = await fetchPracticeQuestions(session, 3, []);
-    if (!entries.length) throw Object.assign(new Error('No quedan preguntas disponibles con este filtro.'), { status: 404 });
-    setCurrentPracticeEntry(entries.shift());
-    session.prefetchQueue = entries.slice(0, 2);
-    renderQuestion();
-    replenishPracticeBuffer();
-  } catch (error) {
-    if (error.status === 404) {
-      showToast(error.message);
-      state.session = null;
-      await setView('home', true);
-    } else if (error.status !== 401) {
-      showToast(error.message);
-    }
-  }
 }
 
 async function advancePracticeInstantly() {
@@ -1127,8 +1226,8 @@ function examTopics() {
 function examAvailableCount() {
   const topics = examTopics();
   const pending = state.pendingExam;
-  if (pending.mode === 'all') return topics.reduce((sum, topic) => sum + Number(topic.total || 0), 0);
   const selected = new Set(pending.topicIds.map(Number));
+  if (pending.kind === 'practice') return practiceAvailableCount(pending.topicIds);
   return topics.filter(topic => selected.has(Number(topic.id))).reduce((sum, topic) => sum + Number(topic.total || 0), 0);
 }
 
@@ -3231,6 +3330,8 @@ function bindEvents() {
   byId('repeatCorrect').addEventListener('change', event => {
     updateQuestionModeLabel(event.target.checked);
     safeStorageSet('opotest-repeat-correct', String(event.target.checked));
+    resetPracticePreload();
+    void primePracticePreload();
     showToast(event.target.checked ? 'Se mostrarán todas las preguntas.' : 'Se ocultarán las preguntas ya acertadas.');
   });
   byId('playAllBtn').addEventListener('click', preparePractice);
