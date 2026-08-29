@@ -110,10 +110,15 @@ jobs:
 
           dockerfile = Path("Dockerfile")
           text = dockerfile.read_text()
+
           version_marker = "ARG BOMBAVTEST_VERSION=dev"
           revision_marker = "ARG BOMBAVTEST_REVISION=unknown"
+
           if text.count(version_marker) != 1 or text.count(revision_marker) != 1:
-              raise SystemExit("Dockerfile release metadata placeholders are missing or duplicated.")
+              raise SystemExit(
+                  "Dockerfile release metadata placeholders are missing or duplicated."
+              )
+
           text = text.replace(
               version_marker,
               f"ARG BOMBAVTEST_VERSION={os.environ['GITHUB_REF_NAME']}",
@@ -122,6 +127,7 @@ jobs:
               revision_marker,
               f"ARG BOMBAVTEST_REVISION={os.environ['RELEASE_SHA']}",
           )
+
           dockerfile.write_text(text)
           PY
 
@@ -131,8 +137,82 @@ jobs:
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
           RAILWAY_ENVIRONMENT: ${{ secrets.RAILWAY_ENVIRONMENT }}
+        shell: bash
         run: |
           railway up --ci \
             --project "$RAILWAY_PROJECT_ID" \
             --service "$RAILWAY_SERVICE" \
             --environment "$RAILWAY_ENVIRONMENT"
+
+  verify-production:
+    name: Verify production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - validate
+      - deploy
+
+    steps:
+      - name: Verify production health
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+        shell: bash
+        run: |
+          if [[ -z "${PRODUCTION_URL}" ]]; then
+            echo "Repository variable PRODUCTION_URL is not configured."
+            exit 1
+          fi
+
+          health_url="${PRODUCTION_URL%/}/health"
+
+          echo "Checking ${health_url}"
+
+          for attempt in {1..12}; do
+            response="$(curl \
+              --fail \
+              --silent \
+              --show-error \
+              --connect-timeout 5 \
+              --max-time 10 \
+              "${health_url}" 2>/dev/null || true)"
+
+            if HEALTH_RESPONSE="${response}" python - <<'PY'
+          import json
+          import os
+          import sys
+
+          try:
+              data = json.loads(os.environ["HEALTH_RESPONSE"])
+          except (json.JSONDecodeError, KeyError):
+              sys.exit(1)
+
+          expected_version = os.environ["GITHUB_REF_NAME"]
+          expected_revision = os.environ["RELEASE_SHA"]
+
+          valid = (
+              data.get("ok") is True
+              and data.get("status") == "healthy"
+              and data.get("version") == expected_version
+              and data.get("revision") == expected_revision
+          )
+
+          if not valid:
+              sys.exit(1)
+          PY
+            then
+              echo "Production is healthy."
+              echo "Version: ${GITHUB_REF_NAME}"
+              echo "Revision: ${RELEASE_SHA}"
+              exit 0
+            fi
+
+            echo "Production is not serving the expected release yet (${attempt}/12)."
+            sleep 5
+          done
+
+          echo "Production health verification failed."
+          echo "Expected version: ${GITHUB_REF_NAME}"
+          echo "Expected revision: ${RELEASE_SHA}"
+          echo "Last response: ${response}"
+          exit 1
