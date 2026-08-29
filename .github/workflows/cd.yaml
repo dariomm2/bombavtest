@@ -7,22 +7,88 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  deploy:
-    name: Deploy
+  validate:
+    name: Validate release
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    outputs:
+      release_sha: ${{ steps.release.outputs.sha }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Validate SemVer tag
         shell: bash
         run: |
           if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag inválido: ${GITHUB_REF_NAME}. Se exige vX.Y.Z."
+            echo "Invalid tag: ${GITHUB_REF_NAME}. Expected vX.Y.Z."
             exit 1
           fi
 
+      - name: Resolve release commit
+        id: release
+        shell: bash
+        run: |
+          release_sha="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          echo "sha=${release_sha}" >> "$GITHUB_OUTPUT"
+          echo "Release commit: ${release_sha}"
+
+      - name: Verify commit belongs to main
+        shell: bash
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "${{ steps.release.outputs.sha }}" origin/main || {
+            echo "The tag must point to a commit contained in main."
+            exit 1
+          }
+
+  verify-ci:
+    name: Verify CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: validate
+
+    steps:
+      - name: Verify successful CI on main for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
+        shell: bash
+        run: |
+          run_url="$(
+            gh api --method GET \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yaml/runs" \
+              -f branch=main \
+              -f head_sha="${RELEASE_SHA}" \
+              -f event=push \
+              -f status=success \
+              -f per_page=1 \
+              --jq '.workflow_runs[0].html_url // empty'
+          )"
+
+          if [[ -z "${run_url}" ]]; then
+            echo "No successful CI run on main was found for ${RELEASE_SHA}."
+            echo "Wait for CI on main to finish successfully before creating the release tag."
+            exit 1
+          fi
+
+          echo "Verified CI run: ${run_url}"
+
+  deploy:
+    name: Deploy Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - validate
+      - verify-ci
+
+    steps:
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -34,6 +100,8 @@ jobs:
           "$HOME/.railway/bin/railway" --version
 
       - name: Inject release metadata
+        env:
+          RELEASE_SHA: ${{ needs.validate.outputs.release_sha }}
         shell: bash
         run: |
           python - <<'PY'
@@ -42,17 +110,18 @@ jobs:
 
           dockerfile = Path("Dockerfile")
           text = dockerfile.read_text()
-
+          version_marker = "ARG BOMBAVTEST_VERSION=dev"
+          revision_marker = "ARG BOMBAVTEST_REVISION=unknown"
+          if text.count(version_marker) != 1 or text.count(revision_marker) != 1:
+              raise SystemExit("Dockerfile release metadata placeholders are missing or duplicated.")
           text = text.replace(
-              "ARG BOMBAVTEST_VERSION=dev",
+              version_marker,
               f"ARG BOMBAVTEST_VERSION={os.environ['GITHUB_REF_NAME']}",
           )
-
           text = text.replace(
-              "ARG BOMBAVTEST_REVISION=unknown",
-              f"ARG BOMBAVTEST_REVISION={os.environ['GITHUB_SHA']}",
+              revision_marker,
+              f"ARG BOMBAVTEST_REVISION={os.environ['RELEASE_SHA']}",
           )
-
           dockerfile.write_text(text)
           PY
 

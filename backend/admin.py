@@ -139,7 +139,8 @@ def clean_topic_number(value: Any) -> str:
     return number
 
 def clean_attachment_name(value: str) -> str:
-    name = Path(str(value or "")).name.strip()
+    normalized = str(value or "").replace("\\", "/")
+    name = Path(normalized).name.strip()
     name = "".join(char for char in name if ord(char) >= 32 and char not in {"\x7f"})
     if not name:
         raise ValueError("El archivo no tiene un nombre válido.")
@@ -886,8 +887,7 @@ def admin_user_update(target_user_id: int):
         return error
     data = json_body() or {}
     db = get_db()
-    current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
-    if not current:
+    if not db.execute("SELECT id FROM users WHERE id = ?", (target_user_id,)).fetchone():
         return api_error("Usuario no encontrado.", 404)
 
     try:
@@ -902,11 +902,16 @@ def admin_user_update(target_user_id: int):
     except ValueError as exc:
         return api_error(str(exc))
 
-    if current["role"] == "admin" and role != "admin" and active_admins_excluding(target_user_id) == 0:
-        return api_error("Debe quedar al menos un administrador activo.", 409)
-
     try:
         db.execute("BEGIN IMMEDIATE")
+        current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
+        if not current:
+            db.rollback()
+            return api_error("Usuario no encontrado.", 404)
+        if current["role"] == "admin" and role != "admin" and active_admins_excluding(target_user_id) == 0:
+            db.rollback()
+            return api_error("Debe quedar al menos un administrador activo.", 409)
+
         if password_values:
             salt, digest = password_values
             db.execute(
@@ -931,6 +936,9 @@ def admin_user_update(target_user_id: int):
     except sqlite3.IntegrityError:
         db.rollback()
         return api_error("Ya existe un usuario con ese nombre de usuario.", 409)
+    except Exception:
+        db.rollback()
+        raise
     return api_ok({"id": target_user_id})
 
 @router.post("/api/admin/users/{target_user_id}/deactivate")
@@ -943,20 +951,28 @@ def admin_user_deactivate(target_user_id: int):
         return api_error("No puedes dar de baja tu propio usuario.", 409)
 
     db = get_db()
-    current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
-    if not current:
-        return api_error("Usuario no encontrado.", 404)
-    if not current["is_active"]:
-        return api_ok({"deactivated": True})
-    if current["role"] == "admin" and active_admins_excluding(target_user_id) == 0:
-        return api_error("Debe quedar al menos un administrador activo.", 409)
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
+        if not current:
+            db.rollback()
+            return api_error("Usuario no encontrado.", 404)
+        if not current["is_active"]:
+            db.rollback()
+            return api_ok({"deactivated": True})
+        if current["role"] == "admin" and active_admins_excluding(target_user_id) == 0:
+            db.rollback()
+            return api_error("Debe quedar al menos un administrador activo.", 409)
 
-    with db:
         db.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
         db.execute(
             "UPDATE users SET is_active = 0, deactivated_at = ? WHERE id = ?",
             (utc_iso(), target_user_id),
         )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return api_ok({"deactivated": True})
 
 @router.delete("/api/admin/users/{target_user_id}")
@@ -970,14 +986,16 @@ def admin_user_delete(target_user_id: int):
         return api_error("No puedes eliminar definitivamente tu propio usuario.", 409)
 
     db = get_db()
-    current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
-    if not current:
-        return api_error("Usuario no encontrado.", 404)
-    if current["role"] == "admin" and current["is_active"] and active_admins_excluding(target_user_id) == 0:
-        return api_error("Debe quedar al menos un administrador activo.", 409)
-
     try:
         db.execute("BEGIN IMMEDIATE")
+        current = db.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
+        if not current:
+            db.rollback()
+            return api_error("Usuario no encontrado.", 404)
+        if current["role"] == "admin" and current["is_active"] and active_admins_excluding(target_user_id) == 0:
+            db.rollback()
+            return api_error("Debe quedar al menos un administrador activo.", 409)
+
         # sessions, attempts and topic assignments cascade from users.
         db.execute("DELETE FROM users WHERE id = ?", (target_user_id,))
         db.commit()
