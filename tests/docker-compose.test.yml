@@ -21,6 +21,19 @@ services:
       S3_ADDRESSING_STYLE: path
     tmpfs:
       - /data
+    volumes:
+      - ./bootstrap_test_db.py:/app/bootstrap_test_db.py:ro
+    entrypoint:
+    - /bin/sh
+    - -ec
+    - |
+      python /app/bootstrap_test_db.py
+      exec python -m uvicorn backend.main:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --workers 1 \
+        --proxy-headers \
+        --forwarded-allow-ips='*'
     depends_on:
       minio-init:
         condition: service_completed_successfully

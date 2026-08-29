@@ -21,7 +21,14 @@ def apply_schema(db_path: Path) -> None:
     db = sqlite3.connect(db_path)
     try:
         db.executescript((ROOT / "migrations" / "001_create_schema.sql").read_text(encoding="utf-8"))
-        db.executescript((ROOT / "migrations" / "003_insert_official_topics.sql").read_text(encoding="utf-8"))
+        # Test data is owned by the test suite, never by data migrations.
+        db.execute(
+            """
+            INSERT INTO topics(id, number, name, color, created_at)
+            VALUES (1, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
+            """,
+            ("TEST-1", "Test topic", "#2563eb"),
+        )
         salt = secrets.token_hex(16)
         db.execute(
             """

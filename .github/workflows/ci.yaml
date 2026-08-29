@@ -1,15 +1,19 @@
 name: CI
 
 on:
+  pull_request:
+    branches:
+      - main
+
   push:
     branches:
-      - "**"
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -121,7 +125,7 @@ jobs:
           yoyo apply --batch --no-config-file --database sqlite:////tmp/bombavtest-ci.db migrations
           yoyo apply --batch --no-config-file --database sqlite:////tmp/bombavtest-ci.db migrations
 
-      - name: Validate migrated database
+      - name: Validate database integrity
         run: |
           python - <<'PY'
           import sqlite3
@@ -129,8 +133,6 @@ jobs:
           db = sqlite3.connect("/tmp/bombavtest-ci.db")
           assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
           assert db.execute("PRAGMA foreign_key_check").fetchall() == []
-          assert db.execute("SELECT COUNT(*) FROM topics").fetchone()[0] == 38
-          assert db.execute("SELECT username FROM users WHERE role = 'admin'").fetchone()[0] == "ci-admin"
           print("Database migrations OK")
           PY
 
