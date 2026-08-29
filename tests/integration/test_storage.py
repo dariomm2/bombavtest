@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from fastapi.responses import Response
+from fastapi.testclient import TestClient
+
 
 from backend import admin as admin_module
 
@@ -171,3 +173,36 @@ def test_storage_download_maps_missing_objects(monkeypatch):
         assert exc.args[0] == "missing"
     else:
         raise AssertionError("NoSuchKey must become FileNotFoundError")
+
+
+def test_storage_object_is_removed_if_database_write_fails(admin, app_env, monkeypatch):
+    import sqlite3
+
+    authenticated_client, _ = admin
+    stored: dict[str, bytes] = {}
+
+    def upload(file, key: str, mime_type: str):
+        file.file.seek(0)
+        stored[key] = file.file.read()
+
+    def delete(key: str):
+        stored.pop(key, None)
+
+    monkeypatch.setattr(admin_module, "s3_upload_file", upload)
+    monkeypatch.setattr(admin_module, "s3_delete_file", delete)
+    monkeypatch.setattr(admin_module, "utc_iso", lambda *args, **kwargs: None)
+
+    with TestClient(authenticated_client.app, raise_server_exceptions=False) as client:
+        login = client.post("/api/login", json={"username": "admin", "password": "admin"})
+        headers = {"X-CSRF-Token": login.json()["data"]["csrf_token"]}
+        response = client.post(
+            "/api/admin/topics/1/attachments",
+            headers=headers,
+            files=[("files", ("db-failure.txt", b"content", "text/plain"))],
+        )
+
+    assert response.status_code == 500
+    assert stored == {}
+    with sqlite3.connect(app_env) as db:
+        assert db.execute("SELECT COUNT(*) FROM topic_attachments").fetchone()[0] == 0
+

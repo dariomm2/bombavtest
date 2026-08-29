@@ -46,3 +46,8 @@ def test_password_validator_accepts_minimum_valid_password():
     salt, digest = admin.new_password_values("Clave123")
     assert len(salt) == 32
     assert len(digest) == 64
+
+
+def test_attachment_name_strips_windows_paths_too():
+    assert admin.clean_attachment_name(r"C:\\fakepath\\manual.pdf") == "manual.pdf"
+    assert admin.clean_attachment_name(r"..\\..\\manual.pdf") == "manual.pdf"
