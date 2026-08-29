@@ -37,7 +37,7 @@ Start the application and MinIO:
 docker compose -f docker-compose.local.yml up --build -d
 ```
 
-BombAvTest will be available at:
+BombAvTest:
 
 ```text
 http://localhost:8000
@@ -55,4 +55,25 @@ To stop the environment and remove all local data:
 docker compose -f docker-compose.local.yml down -v && rm -rf ./data/*
 ```
 
-> Warning: This command removes both the local SQLite database and the MinIO volume.
+> Warning: This removes both the local SQLite database and the MinIO volume.
+
+## Tests
+
+Run the fast test suite:
+
+```bash
+pip install -r requirements-dev.txt && python -m playwright install --with-deps chromium
+pytest tests/unit tests/property tests/integration -q
+```
+
+Run the full Docker, MinIO and browser test suite:
+
+```bash
+docker compose -f tests/docker-compose.test.yml up --build --force-recreate -d --wait && pytest tests/system tests/e2e -q --browser chromium
+```
+
+Stop the test environment:
+
+```bash
+docker compose -f tests/docker-compose.test.yml down
+```

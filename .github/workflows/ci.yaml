@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - "**"
 
 permissions:
   contents: read
@@ -30,10 +32,63 @@ jobs:
             requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Run Ruff
         run: ruff check .
+
+  unit-property:
+    name: Unit + Property
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run unit and property tests
+        run: pytest tests/unit tests/property -q
+
+  integration:
+    name: Integration + Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run integration tests with branch coverage
+        run: >-
+          pytest tests/unit tests/integration -q
+          --cov=backend
+          --cov-branch
+          --cov-report=term-missing
+          --cov-fail-under=75
 
   migrations:
     name: Migrations
@@ -42,7 +97,7 @@ jobs:
 
     env:
       BOMBAVTEST_ADMIN_USERNAME: ci-admin
-      BOMBAVTEST_ADMIN_PASSWORD: ci-admin-password
+      BOMBAVTEST_ADMIN_PASSWORD: Migration123
       BOMBAVTEST_ADMIN_DISPLAY_NAME: CI Admin
 
     steps:
@@ -59,39 +114,35 @@ jobs:
             requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt
 
-      - name: Apply migrations
+      - name: Apply migrations twice
         run: |
-          yoyo apply \
-            --batch \
-            --no-config-file \
-            --database sqlite:////tmp/bombavtest-ci.db \
-            migrations
+          yoyo apply --batch --no-config-file --database sqlite:////tmp/bombavtest-ci.db migrations
+          yoyo apply --batch --no-config-file --database sqlite:////tmp/bombavtest-ci.db migrations
 
-      - name: Validate database
+      - name: Validate migrated database
         run: |
           python - <<'PY'
           import sqlite3
 
           db = sqlite3.connect("/tmp/bombavtest-ci.db")
-
-          integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
-          assert integrity == "ok", integrity
-
-          foreign_key_errors = db.execute(
-              "PRAGMA foreign_key_check"
-          ).fetchall()
-
-          assert foreign_key_errors == [], foreign_key_errors
-
-          print("Database OK")
+          assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+          assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+          assert db.execute("SELECT COUNT(*) FROM topics").fetchone()[0] == 38
+          assert db.execute("SELECT username FROM users WHERE role = 'admin'").fetchone()[0] == "ci-admin"
+          print("Database migrations OK")
           PY
 
-  pytest:
-    name: Pytest
+  system:
+    name: Docker + System + E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    needs:
+      - ruff
+      - unit-property
+      - integration
+      - migrations
 
     steps:
       - name: Checkout
@@ -107,62 +158,23 @@ jobs:
             requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt
 
-      - name: Run tests
-        run: pytest -q
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
 
-  docker:
-    name: Docker
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+      - name: Start isolated test environment
+        run: >-
+          docker compose -f tests/docker-compose.test.yml
+          up --build --force-recreate -d --wait --wait-timeout 120
 
-    needs:
-      - ruff
-      - migrations
-      - pytest
+      - name: Run system and browser tests
+        run: pytest tests/system tests/e2e -q --browser chromium
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Build image
-        run: |
-          docker build \
-            --build-arg BOMBAVTEST_VERSION=ci \
-            --build-arg BOMBAVTEST_REVISION=${{ github.sha }} \
-            -t bombavtest:ci \
-            .
-
-      - name: Start container
-        run: |
-          docker run -d \
-            --name bombavtest-ci \
-            -p 8000:8000 \
-            -e BOMBAVTEST_ADMIN_USERNAME=ci-admin \
-            -e BOMBAVTEST_ADMIN_PASSWORD=ci-admin-password \
-            -e BOMBAVTEST_ADMIN_DISPLAY_NAME="CI Admin" \
-            -e S3_ENDPOINT_URL=http://localhost:9000 \
-            -e S3_BUCKET=bombavtest \
-            -e S3_ACCESS_KEY_ID=ci \
-            -e S3_SECRET_ACCESS_KEY=ci-secret \
-            -e S3_REGION=us-east-1 \
-            -e S3_ADDRESSING_STYLE=path \
-            bombavtest:ci
-
-      - name: Smoke test
-        run: |
-          curl \
-            --fail \
-            --retry 30 \
-            --retry-delay 1 \
-            --retry-all-errors \
-            http://localhost:8000/health
-
-      - name: Show container logs on failure
+      - name: Show Docker logs on failure
         if: failure()
-        run: docker logs bombavtest-ci
+        run: docker compose -f tests/docker-compose.test.yml logs --no-color
 
-      - name: Remove container
+      - name: Stop test environment
         if: always()
-        run: docker rm -f bombavtest-ci
+        run: docker compose -f tests/docker-compose.test.yml down --remove-orphans

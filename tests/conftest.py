@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import secrets
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import Callable
 
@@ -125,3 +127,95 @@ def login_user(request: pytest.FixtureRequest) -> Callable:
 
     request.addfinalizer(lambda: [user.close() for user in clients])
     return login
+
+
+@pytest.fixture()
+def live_admin():
+    import httpx2
+
+    base_url = os.environ.get("BOMBAVTEST_TEST_URL", "http://127.0.0.1:18000")
+    with httpx2.Client(base_url=base_url, timeout=10.0, follow_redirects=True) as live_client:
+        login = live_client.post(
+            "/api/login",
+            json={"username": "test-admin", "password": "TestAdmin123"},
+        )
+        assert login.status_code == 200, login.text
+        yield live_client, {"X-CSRF-Token": login.json()["data"]["csrf_token"]}
+
+
+@pytest.fixture()
+def live_topic_factory():
+    def create(client, headers):
+        marker = uuid.uuid4().hex[:10]
+        return response_data(
+            client.post(
+                "/api/admin/topics",
+                headers=headers,
+                json={
+                    "number": f"E2E-{marker}",
+                    "name": f"Tema E2E {marker}",
+                    "color": "#2563eb",
+                    "attachment_draft_ids": [],
+                },
+            )
+        )
+
+    return create
+
+
+@pytest.fixture()
+def live_question_factory():
+    def create(client, headers, *, topic_id: int = 1, text: str | None = None):
+        marker = uuid.uuid4().hex[:10]
+        correct_text = f"Correcta {marker}"
+        wrong_text = f"Incorrecta {marker}"
+        payload = response_data(
+            client.post(
+                "/api/admin/questions",
+                headers=headers,
+                json={
+                    "topic_id": topic_id,
+                    "text": text or f"Pregunta E2E {marker}",
+                    "explanation": f"Explicación {marker}",
+                    "options": [{"text": correct_text}, {"text": wrong_text}],
+                },
+            )
+        )
+        questions = response_data(client.get("/api/admin/questions"))
+        question = next(item for item in questions if item["id"] == payload["id"])
+        correct = next(option for option in question["options"] if option["is_correct"])
+        wrong = next(option for option in question["options"] if not option["is_correct"])
+        return {
+            "id": question["id"],
+            "text": question["text"],
+            "correct_id": correct["id"],
+            "correct_text": correct["text"],
+            "wrong_id": wrong["id"],
+            "wrong_text": wrong["text"],
+        }
+
+    return create
+
+
+@pytest.fixture()
+def live_user_factory():
+    def create(client, headers, *, topic_ids: list[int] | None = None):
+        marker = uuid.uuid4().hex[:10]
+        username = f"e2e.{marker}"
+        password = "Clave123"
+        user_id = response_data(
+            client.post(
+                "/api/admin/users",
+                headers=headers,
+                json={
+                    "username": username,
+                    "display_name": f"Alumno E2E {marker}",
+                    "role": "user",
+                    "topic_ids": [1] if topic_ids is None else topic_ids,
+                    "password": password,
+                },
+            )
+        )["id"]
+        return {"id": user_id, "username": username, "password": password}
+
+    return create
