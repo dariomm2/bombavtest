@@ -59,21 +59,15 @@ docker compose -f docker-compose.local.yml down -v && rm -rf ./data/*
 
 ## Tests
 
-Run the fast test suite:
+Install the development dependencies:
 
 ```bash
-pip install -r requirements-dev.txt && python -m playwright install --with-deps chromium
-pytest tests/unit tests/property tests/integration -q
+pip install -r requirements-dev.txt
+python -m playwright install --with-deps chromium
 ```
 
-Run the full Docker, MinIO and browser test suite:
+Run the full test suite:
 
 ```bash
-docker compose -f tests/docker-compose.test.yml up --build --force-recreate -d --wait && pytest tests/system tests/e2e -q --browser chromium
-```
-
-Stop the test environment:
-
-```bash
-docker compose -f tests/docker-compose.test.yml down
+python -m pytest -v tests
 ```

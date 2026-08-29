@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import secrets
 import sqlite3
+import subprocess
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -219,3 +220,72 @@ def live_user_factory():
         return {"id": user_id, "username": username, "password": password}
 
     return create
+
+COMPOSE_FILE = ROOT / "tests" / "docker-compose.test.yml"
+
+
+def compose(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    result = subprocess.run(
+        ["docker", "compose", "-f", str(COMPOSE_FILE), *args],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"docker compose {' '.join(args)} failed\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
+
+    return result
+
+
+def uses_docker_environment(items) -> bool:
+    docker_test_dirs = (
+        (ROOT / "tests" / "system").resolve(),
+        (ROOT / "tests" / "e2e").resolve(),
+    )
+
+    for item in items:
+        path = Path(item.path).resolve()
+        for directory in docker_test_dirs:
+            try:
+                path.relative_to(directory)
+                return True
+            except ValueError:
+                pass
+
+    return False
+
+
+@pytest.fixture(scope="session", autouse=True)
+def docker_environment(request: pytest.FixtureRequest):
+    if not uses_docker_environment(request.session.items):
+        yield
+        return
+
+    compose("down", "--remove-orphans", check=False)
+    compose(
+        "up",
+        "--build",
+        "--force-recreate",
+        "-d",
+        "--wait",
+        "--wait-timeout",
+        "120",
+    )
+
+    try:
+        yield
+    finally:
+        if request.session.testsfailed:
+            logs = compose("logs", "--no-color", check=False)
+            print("\n--- Docker logs ---")
+            print(logs.stdout)
+            if logs.stderr:
+                print(logs.stderr)
+
+        compose("down", "--remove-orphans", check=False)
+
