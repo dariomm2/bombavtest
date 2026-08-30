@@ -15,6 +15,9 @@ from functools import wraps
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import InvalidHashError, VerificationError
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
@@ -23,34 +26,42 @@ from .config import (
     LOGIN_RATE_MAX,
     LOGIN_RATE_MAX_KEYS,
     LOGIN_RATE_WINDOW,
-    MAX_JSON_BYTES,
-    MAX_UPLOAD_REQUEST_BYTES,
-    PBKDF2_ITERATIONS,
     SESSION_COOKIE,
     SESSION_DAYS,
 )
 from .db import bind_db, connect_db, get_db, reset_db
 
+PASSWORD_HASHER = PasswordHasher(
+    time_cost=2,
+    memory_cost=19_456,
+    parallelism=1,
+    hash_len=32,
+    salt_len=16,
+    type=Type.ID,
+)
+
+
+def hash_password(password: str) -> str:
+    return PASSWORD_HASHER.hash(password)
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        return PASSWORD_HASHER.verify(stored_hash, password)
+    except (VerificationError, InvalidHashError):
+        return False
+
+
 MADRID_TZ = ZoneInfo("Europe/Madrid")
 LOGIN_ATTEMPTS: dict[str, deque[float]] = defaultdict(deque)
+DUMMY_PASSWORD_HASH = hash_password("BombAvTest dummy password")
 router = APIRouter()
 
 _current_request: ContextVar[Request | None] = ContextVar("bombavtest_request", default=None)
 _current_session: ContextVar[sqlite3.Row | None] = ContextVar("bombavtest_session_row", default=None)
 _json_body_value: ContextVar[Any] = ContextVar("bombavtest_json_body", default=None)
-_json_body_too_large: ContextVar[bool] = ContextVar("bombavtest_json_too_large", default=False)
 
 
-def password_digest(password: str, salt_hex: str) -> str:
-    salt = bytes.fromhex(salt_hex)
-    return hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS
-    ).hex()
-
-
-def verify_password(password: str, salt_hex: str, stored_hash: str) -> bool:
-    candidate = password_digest(password, salt_hex)
-    return hmac.compare_digest(candidate, stored_hash)
 
 class _GProxy:
     @property
@@ -88,8 +99,8 @@ class _RequestProxy:
 
     @property
     def remote_addr(self) -> str | None:
-        client = self._request().client
-        return client.host if client else None
+        current = self._request()
+        return current.client.host if current.client else None
 
     @property
     def is_secure(self) -> bool:
@@ -99,19 +110,7 @@ class _RequestProxy:
     def path(self) -> str:
         return self._request().url.path
 
-    @property
-    def content_length(self) -> int | None:
-        raw = self.headers.get("content-length")
-        if raw is None:
-            return None
-        try:
-            return int(raw)
-        except ValueError:
-            return None
-
     def get_json(self, silent: bool = True):
-        if _json_body_too_large.get():
-            return None
         return _json_body_value.get()
 
 
@@ -129,32 +128,18 @@ async def bombavtest_request_context(http_request: Request, call_next):
     request_token = _current_request.set(http_request)
     db_token = None
     json_token = _json_body_value.set(None)
-    large_token = _json_body_too_large.set(False)
     session_token = _current_session.set(None)
     db = None
     try:
-        content_length = http_request.headers.get("content-length")
-        try:
-            declared_length = int(content_length) if content_length else None
-        except ValueError:
-            declared_length = None
-
         content_type = http_request.headers.get("content-type", "").lower()
         if content_type.startswith("application/json"):
-            if declared_length is not None and declared_length > MAX_JSON_BYTES:
-                _json_body_too_large.set(True)
-            else:
-                raw = await http_request.body()
-                if len(raw) > MAX_JSON_BYTES:
-                    _json_body_too_large.set(True)
-                elif raw:
-                    try:
-                        parsed = json.loads(raw)
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        parsed = None
-                    _json_body_value.set(parsed)
-        elif content_type.startswith("multipart/form-data") and declared_length is not None and declared_length > MAX_UPLOAD_REQUEST_BYTES:
-            return JSONResponse({"ok": False, "error": "La subida supera el tamaño máximo permitido."}, status_code=413)
+            raw = await http_request.body()
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    parsed = None
+                _json_body_value.set(parsed)
 
         if http_request.url.path.startswith("/api/") or http_request.url.path == "/health":
             db = connect_db()
@@ -168,7 +153,6 @@ async def bombavtest_request_context(http_request: Request, call_next):
         if db is not None:
             db.close()
         _current_session.reset(session_token)
-        _json_body_too_large.reset(large_token)
         _json_body_value.reset(json_token)
         _current_request.reset(request_token)
 
@@ -260,8 +244,6 @@ def require_csrf() -> tuple[bool, Any | None]:
     return True, None
 
 def json_body() -> dict[str, Any] | None:
-    if request.content_length is not None and request.content_length > MAX_JSON_BYTES:
-        return None
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
 
@@ -336,9 +318,10 @@ def login():
     account = db.execute(
         "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)
     ).fetchone()
-    if not account or not account["is_active"] or not verify_password(
-        password, account["password_salt"], account["password_hash"]
-    ):
+
+    password_hash = account["password_hash"] if account and account["is_active"] else DUMMY_PASSWORD_HASH
+    password_valid = verify_password(password, password_hash)
+    if not account or not account["is_active"] or not password_valid:
         record_failed_login(rate_keys)
         return api_error("Usuario o contraseña incorrectos.", 401, "INVALID_CREDENTIALS")
     clear_login_attempts(rate_keys)

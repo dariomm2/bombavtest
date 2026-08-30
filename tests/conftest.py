@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import secrets
 import sqlite3
 import subprocess
 import uuid
@@ -13,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from backend import auth
 from backend import main as app_module
+from backend.auth import hash_password
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -29,13 +29,12 @@ def apply_schema(db_path: Path) -> None:
             """,
             ("TEST-1", "Test topic", "#2563eb"),
         )
-        salt = secrets.token_hex(16)
         db.execute(
             """
-            INSERT INTO users(username, display_name, password_salt, password_hash, role, is_active, created_at)
-            VALUES (?, ?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
+            INSERT INTO users(username, display_name, password_hash, role, is_active, created_at)
+            VALUES (?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
             """,
-            ("admin", "Admin", salt, auth.password_digest("admin", salt)),
+            ("admin", "Admin", hash_password("admin")),
         )
         db.commit()
     finally:

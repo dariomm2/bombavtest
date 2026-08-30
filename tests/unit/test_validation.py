@@ -43,9 +43,8 @@ def test_username_validator_rejects_invalid_values(value):
 
 
 def test_password_validator_accepts_minimum_valid_password():
-    salt, digest = admin.new_password_values("Clave123")
-    assert len(salt) == 32
-    assert len(digest) == 64
+    password_hash = admin.new_password_hash("Clave123")
+    assert password_hash.startswith("$argon2id$")
 
 
 def test_attachment_name_strips_windows_paths_too():

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-import secrets
 import sqlite3
 from pathlib import Path
 
-from backend.auth import password_digest
+from backend.auth import hash_password
 
 DB_PATH = Path(os.environ.get("BOMBAVTEST_DB_PATH", "/data/app.db"))
 SCHEMA_PATH = Path("/app/migrations/001_create_schema.sql")
@@ -20,16 +19,15 @@ with sqlite3.connect(DB_PATH) as db:
     db.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
 
     # System/E2E data belongs to the test environment, not to migrations.
-    salt = secrets.token_hex(16)
     db.execute(
         """
         INSERT INTO users(
-            username, display_name, password_salt, password_hash,
+            username, display_name, password_hash,
             role, is_active, created_at
         )
-        VALUES (?, ?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
+        VALUES (?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
         """,
-        (username, display_name, salt, password_digest(password, salt)),
+        (username, display_name, hash_password(password)),
     )
     db.execute(
         """

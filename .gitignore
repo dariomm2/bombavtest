@@ -11,6 +11,14 @@ venv/
 .env.*
 !.env.example
 
+# Private keys
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
 # SQLite and local persistent data
 *.db
 *.sqlite
@@ -19,8 +27,15 @@ venv/
 *-shm
 data/*
 !data/.gitkeep
+sql-scripts
 
 # OS/editor
 .DS_Store
 .vscode/
 .idea/
+
+# Test artifacts
+.coverage
+htmlcov/
+test-results/
+playwright-report/

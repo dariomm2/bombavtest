@@ -123,7 +123,8 @@ function fileKind(name = '', mime = '') {
 }
 
 function libraryIcon(name, style = 'solid', className = '') {
-  return `<span class="fa-svg-icon ${escapeHtml(className)}" style="--fa-svg:url('/assets/icons/${style}/${name}.svg')" aria-hidden="true"></span>`;
+  const iconClass = `fa-svg-${style}-${name}`;
+  return `<span class="fa-svg-icon ${escapeHtml(iconClass)} ${escapeHtml(className)}" aria-hidden="true"></span>`;
 }
 
 function fileTypeIcon(name, mime) {
@@ -150,6 +151,9 @@ const DELETE_ICON = libraryIcon('trash-can');
 const CANCEL_ICON = libraryIcon('xmark');
 const FOLDER_ICON = libraryIcon('folder', 'regular');
 const CHEVRON_ICON = libraryIcon('chevron-down');
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+const MAX_ATTACHMENTS_PER_TOPIC = 12;
+const MAX_TOPIC_ATTACHMENTS_BYTES = 200 * 1024 * 1024;
 
 function timestampValue(value) {
   const parsed = Date.parse(value || '');
@@ -489,7 +493,7 @@ function renderHomeSkeleton() {
   const heatmap = byId('homeHeatmap');
   const range = byId('homeHeatmapRange');
   const grid = byId('topicsGrid');
-  if (title) title.innerHTML = '<span class="skeleton-block" style="width:180px;height:32px"></span>';
+  if (title) title.innerHTML = '<span class="skeleton-block skeleton-home-title"></span>';
   if (total) total.innerHTML = '<span class="skeleton-block skeleton-number"></span>';
   if (heatmap) {
     heatmap.classList.add('is-loading-heatmap');
@@ -565,7 +569,7 @@ function renderAdminSkeleton() {
   if (counter) counter.innerHTML = skeletonLine('74px', '10px');
   const exportButton = byId('adminExportBtn');
   if (exportButton) exportButton.disabled = true;
-  target.innerHTML = `<div class="admin-table-wrap skeleton-table-wrap" style="--skeleton-cols:${columns}" aria-hidden="true">
+  target.innerHTML = `<div class="admin-table-wrap skeleton-table-wrap skeleton-cols-${columns}" aria-hidden="true">
     <div class="skeleton-table-head">${Array.from({ length: columns }, () => skeletonLine('72%', '10px')).join('')}</div>
     ${Array.from({ length: 7 }, (_, row) => `<div class="skeleton-table-row">${Array.from({ length: columns }, (_, col) => skeletonLine(`${52 + ((row + col) % 4) * 10}%`, '11px')).join('')}</div>`).join('')}
   </div>`;
@@ -1848,7 +1852,7 @@ function renderTopicMetricChart(targetId, items, mode, options = {}) {
                 <line class="topic-error-cap" x1="${(errorLeft + errorWidth).toFixed(2)}" y1="3" x2="${(errorLeft + errorWidth).toFixed(2)}" y2="17" vector-effect="non-scaling-stroke"></line>` : ''}
               ${referencePos != null ? `
                 <line class="topic-reference-halo" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke"></line>
-                <line class="topic-reference-marker" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke" style="stroke:${topicColor}"></line>` : ''}
+                <line class="topic-reference-marker" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke" stroke="${topicColor}"></line>` : ''}
             </svg>` : ''}
           </div>
           <div class="topic-metric-value"><b>${valueText}</b>${isAverage && error > 0 ? `<small>± ${formatDecimal(error)}${isAccuracy ? ' %' : ''}</small>` : ''}</div>
@@ -1959,10 +1963,10 @@ function renderLineChart(targetId, series, options = {}) {
       <defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
       ${grid}${xLabels}
       <path d="${areaPath}" fill="url(#${gradientId})"></path>
-      <path class="chart-line" style="stroke:${color}" d="${linePath}"></path>
+      <path class="chart-line" stroke="${color}" d="${linePath}"></path>
       <g class="chart-hover-marker" hidden>
         <line class="chart-hover-guide" x1="0" y1="${pad.top}" x2="0" y2="${pad.top + plotH}"></line>
-        <circle class="chart-hover-dot" style="stroke:${color}" cx="0" cy="0" r="4"></circle>
+        <circle class="chart-hover-dot" stroke="${color}" cx="0" cy="0" r="4"></circle>
       </g>
       <rect class="chart-hover-surface" x="${pad.left}" y="${pad.top}" width="${plotW}" height="${plotH}" fill="transparent"></rect>
     </svg>
@@ -2335,7 +2339,7 @@ function topicFormHtml(item = null) {
           <input class="sr-only" id="adminAttachmentInput" type="file" multiple tabindex="-1">
           <span class="attachment-drop-icon">${UPLOAD_ICON}</span>
           <span class="attachment-drop-title">Arrastra archivos aquí</span>
-          <small>o haz clic para seleccionarlos · máximo 100 MB por archivo</small>
+          <small>o haz clic para seleccionarlos · máximo 100 MB por archivo · 12 archivos y 200 MB por tema</small>
         </div>
         <div class="admin-attachment-list" id="adminAttachmentList"></div>
       </div>
@@ -2498,8 +2502,17 @@ function startTopicFileUpload(file) {
   const uploads = editing.uploads || (editing.uploads = []);
   const key = `${file.name}::${file.size}::${file.lastModified}`;
   if (uploads.some(item => item.key === key && item.status !== 'cancelled')) return;
-  if (uploads.length >= 12) {
-    showToast('Puedes añadir como máximo 12 archivos cada vez.');
+  const existing = editing.existingAttachments || [];
+  if (existing.length + uploads.length >= MAX_ATTACHMENTS_PER_TOPIC) {
+    showToast(`Puedes guardar como máximo ${MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.`);
+    return;
+  }
+  const currentBytes = [...existing, ...uploads].reduce(
+    (total, item) => total + Number(item.size_bytes ?? item.total ?? item.file?.size ?? 0),
+    0
+  );
+  if (currentBytes + Number(file.size || 0) > MAX_TOPIC_ATTACHMENTS_BYTES) {
+    showToast('Los archivos adjuntos de un tema no pueden superar 200 MB en total.');
     return;
   }
 
@@ -2567,14 +2580,27 @@ function stageTopicFiles(fileList) {
   const editing = state.admin.editing;
   if (editing?.type !== 'topics') return;
   const incoming = [...(fileList || [])].filter(file => file && file.name);
-  let available = Math.max(0, 12 - (editing.uploads || []).length);
+  const existing = editing.existingAttachments || [];
+  const uploads = editing.uploads || [];
+  let available = Math.max(0, MAX_ATTACHMENTS_PER_TOPIC - existing.length - uploads.length);
+  let totalBytes = [...existing, ...uploads].reduce(
+    (total, item) => total + Number(item.size_bytes ?? item.total ?? item.file?.size ?? 0),
+    0
+  );
   for (const file of incoming) {
     if (file.size <= 0) { showToast(`«${file.name}» está vacío.`); continue; }
-    if (file.size > 100 * 1024 * 1024) { showToast(`«${file.name}» supera 100 MB.`); continue; }
-    if (available <= 0) { showToast('Puedes añadir como máximo 12 archivos cada vez.'); break; }
+    if (file.size > MAX_ATTACHMENT_BYTES) { showToast(`«${file.name}» supera 100 MB.`); continue; }
+    if (available <= 0) { showToast(`Puedes guardar como máximo ${MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.`); break; }
+    if (totalBytes + file.size > MAX_TOPIC_ATTACHMENTS_BYTES) {
+      showToast('Los archivos adjuntos de un tema no pueden superar 200 MB en total.');
+      continue;
+    }
     const before = (editing.uploads || []).length;
     startTopicFileUpload(file);
-    if ((editing.uploads || []).length > before) available -= 1;
+    if ((editing.uploads || []).length > before) {
+      available -= 1;
+      totalBytes += file.size;
+    }
   }
 }
 
