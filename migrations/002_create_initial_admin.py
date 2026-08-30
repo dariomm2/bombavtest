@@ -2,9 +2,17 @@ from __future__ import annotations
 
 import os
 
+from argon2 import PasswordHasher, Type
 from yoyo import step
 
-from backend.auth import hash_password
+PASSWORD_HASHER = PasswordHasher(
+    time_cost=2,
+    memory_cost=19_456,
+    parallelism=1,
+    hash_len=32,
+    salt_len=16,
+    type=Type.ID,
+)
 
 __depends__ = {"001_create_schema"}
 
@@ -32,7 +40,7 @@ def create_initial_admin(conn) -> None:
         INSERT INTO users(username, display_name, password_hash, role, is_active, created_at)
         VALUES (?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
         """,
-        (username, display_name, hash_password(password)),
+        (username, display_name, PASSWORD_HASHER.hash(password)),
     )
 
 
