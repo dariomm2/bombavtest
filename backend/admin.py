@@ -17,7 +17,11 @@ from .auth import (
     api_error, api_ok, hash_password, json_body, request, require_admin, require_auth,
     require_csrf, user_id, utc_iso, utc_now,
 )
-from .config import MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_UPLOAD
+from .config import (
+    MAX_ATTACHMENT_BYTES,
+    MAX_ATTACHMENTS_PER_TOPIC,
+    MAX_TOPIC_ATTACHMENTS_BYTES,
+)
 from .db import get_db
 from .practice import attachment_payload, attachments_by_topic, current_topic_ids, topic_sort_key
 from .storage import delete_file as s3_delete_file
@@ -80,8 +84,8 @@ def clean_attachment_draft_ids(raw: Any) -> list[int]:
         if item <= 0 or item in result:
             continue
         result.append(item)
-        if len(result) > 50:
-            raise ValueError("Hay demasiados adjuntos pendientes.")
+        if len(result) > MAX_ATTACHMENTS_PER_TOPIC:
+            raise ValueError(f"Puedes guardar como máximo {MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.")
     return result
 
 def claim_attachment_drafts(db: sqlite3.Connection, topic_id: int, draft_ids: list[int], owner_id: int) -> None:
@@ -97,6 +101,16 @@ def claim_attachment_drafts(db: sqlite3.Connection, topic_id: int, draft_ids: li
     ).fetchall()
     if len(rows) != len(draft_ids):
         raise ValueError("Algún adjunto temporal ya no está disponible.")
+
+    current_count, current_bytes = db.execute(
+        "SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM topic_attachments WHERE topic_id = ?",
+        (topic_id,),
+    ).fetchone()
+    if int(current_count) + len(rows) > MAX_ATTACHMENTS_PER_TOPIC:
+        raise ValueError(f"Puedes guardar como máximo {MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.")
+    if int(current_bytes) + sum(int(row["size_bytes"]) for row in rows) > MAX_TOPIC_ATTACHMENTS_BYTES:
+        raise ValueError("Los archivos adjuntos de un tema no pueden superar 200 MB en total.")
+
     for row in rows:
         db.execute(
             """INSERT INTO topic_attachments(topic_id, original_name, storage_key, mime_type, size_bytes, created_at)
@@ -483,8 +497,8 @@ def admin_topic_attachment_upload(topic_id: int, files: list[UploadFile] = File(
     files = [file for file in files if file and file.filename]
     if not files:
         return api_error("Selecciona al menos un archivo.")
-    if len(files) > MAX_ATTACHMENTS_PER_UPLOAD:
-        return api_error(f"Puedes subir como máximo {MAX_ATTACHMENTS_PER_UPLOAD} archivos a la vez.")
+    if len(files) > MAX_ATTACHMENTS_PER_TOPIC:
+        return api_error(f"Puedes guardar como máximo {MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.")
 
     prepared: list[tuple[Any, str, str, int, str]] = []
     try:
@@ -499,6 +513,15 @@ def admin_topic_attachment_upload(topic_id: int, files: list[UploadFile] = File(
             prepared.append((file, name, mime, size, storage_key_for(name)))
     except ValueError as exc:
         return api_error(str(exc))
+
+    current_count, current_bytes = db.execute(
+        "SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM topic_attachments WHERE topic_id = ?",
+        (topic_id,),
+    ).fetchone()
+    if int(current_count) + len(prepared) > MAX_ATTACHMENTS_PER_TOPIC:
+        return api_error(f"Puedes guardar como máximo {MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.")
+    if int(current_bytes) + sum(size for _, _, _, size, _ in prepared) > MAX_TOPIC_ATTACHMENTS_BYTES:
+        return api_error("Los archivos adjuntos de un tema no pueden superar 200 MB en total.")
 
     stored_keys: list[str] = []
     created_ids: list[int] = []

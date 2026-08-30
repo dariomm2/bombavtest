@@ -151,6 +151,9 @@ const DELETE_ICON = libraryIcon('trash-can');
 const CANCEL_ICON = libraryIcon('xmark');
 const FOLDER_ICON = libraryIcon('folder', 'regular');
 const CHEVRON_ICON = libraryIcon('chevron-down');
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+const MAX_ATTACHMENTS_PER_TOPIC = 12;
+const MAX_TOPIC_ATTACHMENTS_BYTES = 200 * 1024 * 1024;
 
 function timestampValue(value) {
   const parsed = Date.parse(value || '');
@@ -2336,7 +2339,7 @@ function topicFormHtml(item = null) {
           <input class="sr-only" id="adminAttachmentInput" type="file" multiple tabindex="-1">
           <span class="attachment-drop-icon">${UPLOAD_ICON}</span>
           <span class="attachment-drop-title">Arrastra archivos aquí</span>
-          <small>o haz clic para seleccionarlos · máximo 100 MB por archivo</small>
+          <small>o haz clic para seleccionarlos · máximo 100 MB por archivo · 12 archivos y 200 MB por tema</small>
         </div>
         <div class="admin-attachment-list" id="adminAttachmentList"></div>
       </div>
@@ -2499,8 +2502,17 @@ function startTopicFileUpload(file) {
   const uploads = editing.uploads || (editing.uploads = []);
   const key = `${file.name}::${file.size}::${file.lastModified}`;
   if (uploads.some(item => item.key === key && item.status !== 'cancelled')) return;
-  if (uploads.length >= 12) {
-    showToast('Puedes añadir como máximo 12 archivos cada vez.');
+  const existing = editing.existingAttachments || [];
+  if (existing.length + uploads.length >= MAX_ATTACHMENTS_PER_TOPIC) {
+    showToast(`Puedes guardar como máximo ${MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.`);
+    return;
+  }
+  const currentBytes = [...existing, ...uploads].reduce(
+    (total, item) => total + Number(item.size_bytes ?? item.total ?? item.file?.size ?? 0),
+    0
+  );
+  if (currentBytes + Number(file.size || 0) > MAX_TOPIC_ATTACHMENTS_BYTES) {
+    showToast('Los archivos adjuntos de un tema no pueden superar 200 MB en total.');
     return;
   }
 
@@ -2568,14 +2580,27 @@ function stageTopicFiles(fileList) {
   const editing = state.admin.editing;
   if (editing?.type !== 'topics') return;
   const incoming = [...(fileList || [])].filter(file => file && file.name);
-  let available = Math.max(0, 12 - (editing.uploads || []).length);
+  const existing = editing.existingAttachments || [];
+  const uploads = editing.uploads || [];
+  let available = Math.max(0, MAX_ATTACHMENTS_PER_TOPIC - existing.length - uploads.length);
+  let totalBytes = [...existing, ...uploads].reduce(
+    (total, item) => total + Number(item.size_bytes ?? item.total ?? item.file?.size ?? 0),
+    0
+  );
   for (const file of incoming) {
     if (file.size <= 0) { showToast(`«${file.name}» está vacío.`); continue; }
-    if (file.size > 100 * 1024 * 1024) { showToast(`«${file.name}» supera 100 MB.`); continue; }
-    if (available <= 0) { showToast('Puedes añadir como máximo 12 archivos cada vez.'); break; }
+    if (file.size > MAX_ATTACHMENT_BYTES) { showToast(`«${file.name}» supera 100 MB.`); continue; }
+    if (available <= 0) { showToast(`Puedes guardar como máximo ${MAX_ATTACHMENTS_PER_TOPIC} archivos por tema.`); break; }
+    if (totalBytes + file.size > MAX_TOPIC_ATTACHMENTS_BYTES) {
+      showToast('Los archivos adjuntos de un tema no pueden superar 200 MB en total.');
+      continue;
+    }
     const before = (editing.uploads || []).length;
     startTopicFileUpload(file);
-    if ((editing.uploads || []).length > before) available -= 1;
+    if ((editing.uploads || []).length > before) {
+      available -= 1;
+      totalBytes += file.size;
+    }
   }
 }
 

@@ -812,7 +812,7 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
     }
-/* V1: authentication and small production-state additions */
+/* Authentication */
 [hidden] { display: none !important; }
 
 .login-shell {
@@ -1226,7 +1226,7 @@ html[data-theme="dark"] .login-card { border-color: var(--line); }
   .modal-actions .btn { min-width: 0; flex: 1; }
 }
 
-/* V1.1: richer administration tables and configurable simulations */
+/* Administration tables and simulation controls */
 @media (min-width: 1041px) {
   .hero { grid-template-columns: minmax(520px, 1.12fr) minmax(430px, .88fr); }
 }
@@ -1467,7 +1467,7 @@ html[data-theme="dark"] .login-card { border-color: var(--line); }
   .admin-table td { grid-template-columns: 72px minmax(0, 1fr); }
 }
 
-/* V1.2: scrollable dialogs and conventional administration tables */
+/* Scrollable dialogs and administration tables */
 .modal-backdrop {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1631,7 +1631,7 @@ html[data-theme="dark"] .login-card { border-color: var(--line); }
 }
 
 /* --------------------------------------------------------------------------
-   V4: admin metadata, topic selects and interactive chart tooltips
+   Admin metadata, topic selects and interactive chart tooltips
    -------------------------------------------------------------------------- */
 .chart-hover-surface { cursor: crosshair; touch-action: pan-y; }
 .chart-hover-guide {
@@ -1744,7 +1744,7 @@ html[data-theme="dark"] .login-card { border-color: var(--line); }
 }
 
 /* --------------------------------------------------------------------------
-   V5: consistency pass requested after Admin v4
+   Shared surface and administration consistency
    -------------------------------------------------------------------------- */
 body { background: var(--bg); }
 .login-shell { background: var(--bg); }
@@ -1922,7 +1922,7 @@ body { background: var(--bg); }
   .bar-track { grid-column: 1 / -1; grid-row: 2; }
 }
 
-/* V6: statistics scopes, paired bar charts and final interaction polish. */
+/* Statistics scopes and paired bar charts */
 .hero-logout {
   border: 0 !important;
   background: var(--danger-soft) !important;
@@ -2133,7 +2133,7 @@ body { background: var(--bg); }
   .topic-metric-axis > div { grid-column: 1; padding: 0 1px; }
 }
 
-/* V7: unified statistics experience and page-title cleanup. */
+/* Unified statistics experience */
 .stats-header-simple,
 .admin-header-simple {
   align-items: center;
@@ -2298,7 +2298,7 @@ body { background: var(--bg); }
 }
 
 /* --------------------------------------------------------------------------
-   V8: privacy actions + focused student statistics + cohort dispersion
+   Privacy actions, focused student statistics and cohort dispersion
    -------------------------------------------------------------------------- */
 .admin-user-identity {
   min-width: 0;
@@ -2434,7 +2434,7 @@ body { background: var(--bg); }
   .admin-table-users { min-width: 1210px; }
 }
 
-/* V9: final statistics polish and shared skeleton loading. */
+/* Statistics and shared skeleton loading */
 
 /* KPI cards use one rhythm across personal, student and cohort statistics. */
 .kpi {
@@ -2640,7 +2640,7 @@ body { background: var(--bg); }
 }
 
 /* --------------------------------------------------------------------------
-   V10: final cohort geometry + professional statistical marks
+   Cohort geometry and statistical marks
    -------------------------------------------------------------------------- */
 
 /* One real 4 × 2 grid: six KPI cells + activity card spanning two rows. */
@@ -2745,7 +2745,7 @@ body { background: var(--bg); }
 }
 
 /* --------------------------------------------------------------------------
-   V11: mobile statistics alignment + heatmap skeleton geometry
+   Mobile statistics alignment and heatmap skeleton geometry
    -------------------------------------------------------------------------- */
 
 /* Heatmap skeleton mirrors the real calendar: weekday header + exactly 28 days. */
@@ -2880,7 +2880,7 @@ body { background: var(--bg); }
 
 
 /* --------------------------------------------------------------------------
-   V12: stable activity skeleton + mobile chart touch interaction
+   Stable activity skeleton and mobile chart touch interaction
    -------------------------------------------------------------------------- */
 
 /* The global activity card has one explicit final geometry. The loading card
@@ -2933,7 +2933,7 @@ body { background: var(--bg); }
 }
 
 /* --------------------------------------------------------------------------
-   V14: activity skeleton rebuilt from the final component geometry
+   Activity skeleton based on the loaded component geometry
    -------------------------------------------------------------------------- */
 
 /* Loading uses the final calendar itself: same labels, same 7-column grid,
@@ -3015,7 +3015,7 @@ body { background: var(--bg); }
   }
 }
 
-/* V16 · Practice explanations, left exam navigation and review */
+/* Practice explanations, left exam navigation and review */
 .feedback-explanation {
   margin: 7px 0 0;
   color: inherit;
@@ -3307,7 +3307,7 @@ html[data-theme="dark"] .review-status.skipped { color: #f2bf63; }
 }
 
 
-/* V17 · focused question mode, robust sticky navigator and refined review */
+/* Focused question mode, sticky navigator and review */
 .app-shell.focus-session {
   padding-top: 0;
 }
@@ -3448,7 +3448,7 @@ html[data-theme="dark"] .review-status.skipped { color: #f2bf63; }
 }
 
 
-/* V18 · aligned exam navigator, refined session setup and dynamic answer editor */
+/* Exam navigator, session setup and answer editor */
 .question-page-layout.exam-active .exam-nav-card {
   margin-top: var(--exam-nav-start-offset, 0px);
 }
@@ -3557,7 +3557,7 @@ html[data-theme="dark"] .review-status.skipped { color: #f2bf63; }
 .admin-option-row.is-auto-row:focus-within { opacity: 1; }
 .admin-option-row.is-auto-row .option-remove[hidden] { display: block; visibility: hidden; }
 
-/* V19 · form consistency, unobtrusive validation and simplified session setup */
+/* Form consistency, validation and session setup */
 .field.required-empty > span:first-child::before,
 .admin-options-block.required-empty > span:first-child::before {
   content: "*";
@@ -3656,7 +3656,7 @@ html[data-theme="dark"] .review-status.skipped { color: #f2bf63; }
   .admin-option-role { font-size: .58rem; }
 }
 
-/* V20 · consistent forms, clean dialogs and instantaneous session interactions */
+/* Forms, dialogs and session interactions */
 
 /* Required markers sit after the field name and disappear as soon as the field is valid. */
 .field.required-empty > span:first-child::before,
@@ -3836,7 +3836,7 @@ textarea::placeholder {
 }
 #examIntroTitle { padding-right: 46px; }
 
-/* V21 · compact session selectors, mobile polish and explicit scroll affordances */
+/* Compact session selectors and mobile behavior */
 .sr-only {
   position: absolute !important;
   width: 1px !important;
@@ -4017,7 +4017,7 @@ textarea::placeholder {
   .admin-table-users td:last-child { width: 246px; }
 }
 
-/* V21 mobile refinement: keep selector utilities on one compact row. */
+/* Keep selector utilities on one compact mobile row. */
 @media (max-width: 720px) {
   .exam-count-row {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -4062,7 +4062,7 @@ textarea::placeholder {
 }
 
 
-/* V22: compact writable custom count slot. */
+/* Writable custom question count */
 .exam-count-input-wrap input::placeholder {
   font-size: .64rem;
   font-weight: 650;
@@ -4080,7 +4080,7 @@ textarea::placeholder {
 }
 
 
-/* V29 · uniform legal footer and public legal pages */
+/* Legal footer and public legal pages */
 :root { --site-footer-height: 44px; }
 
 .app-shell { min-height: calc(100vh - var(--site-footer-height)); }
@@ -4188,11 +4188,11 @@ textarea::placeholder {
   .legal-document li { font-size: .8rem; line-height: 1.68; }
 }
 
-/* V29 template annotations remain visible but secondary until the academy completes them. */
+/* Template annotations remain visually secondary. */
 .legal-template-note { color: var(--muted); font-size: .74rem !important; line-height: 1.58 !important; }
 .app-shell.focus-session { min-height: 100vh; }
 
-/* V31 · topic access, hierarchical topic codes and attachments */
+/* Topic access, hierarchical topic codes and attachments */
 .topic-heading-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4299,28 +4299,6 @@ textarea::placeholder {
   place-items: center;
   color: var(--muted);
 }
-.topic-attachment-download,
-.attachment-remove {
-  min-height: 29px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--brand-strong);
-  background: transparent;
-  font-size: .61rem;
-  font-weight: 760;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.topic-attachment-download:hover { background: var(--brand-soft); }
-.topic-attachment-download svg { width: 14px; height: 14px; }
-.attachment-remove { color: var(--danger); }
-.attachment-remove:hover { background: var(--danger-soft); }
-.admin-attachment-row.is-pending { background: color-mix(in srgb, var(--brand-soft) 48%, transparent); }
 
 .admin-attachments-field { gap: 9px; }
 .attachment-drop-zone {
@@ -4422,8 +4400,6 @@ textarea::placeholder {
   .topic-heading-row .topic-ring { width: 50px; height: 50px; flex-basis: 50px; }
   .topic-heading-row .topic-ring span { font-size: .68rem; }
   .topic-attachment-row { grid-template-columns: 28px minmax(0, 1fr) auto; padding: 7px 8px; }
-  .topic-attachment-download span { display: none; }
-  .topic-attachment-download { width: 30px; padding: 0; }
   .attachment-drop-zone { min-height: 88px; padding: 13px 10px; }
   .admin-user-topic-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -4459,7 +4435,7 @@ textarea::placeholder {
   }
 }
 
-/* V32 · immediate attachment uploads + collapsed attachment disclosure */
+/* Attachment uploads and disclosure */
 .attachment-disclosure {
   min-width: 0;
   overflow: hidden;
@@ -4598,12 +4574,6 @@ textarea::placeholder {
 .attachment-download-action { color: var(--brand-strong); }
 .attachment-download-action:hover,
 .attachment-download-action:focus-visible { background: var(--brand-soft); }
-.attachment-delete-action,
-.attachment-cancel-action { color: var(--danger); }
-.attachment-delete-action:hover,
-.attachment-delete-action:focus-visible,
-.attachment-cancel-action:hover,
-.attachment-cancel-action:focus-visible { background: var(--danger-soft); }
 
 .admin-attachment-row.is-uploading,
 .admin-attachment-row.is-draft { background: transparent; }
@@ -4643,22 +4613,10 @@ textarea::placeholder {
 }
 
 .admin-attachments-field { gap: 0; }
-.admin-attachment-disclosure .attachment-disclosure-panel { padding: 10px; }
-.admin-attachment-disclosure .admin-attachment-list {
-  margin-top: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: transparent;
-}
-.admin-attachment-disclosure .attachment-empty { min-height: 42px; display: grid; place-items: center; }
 .attachment-drop-zone {
   background: transparent;
 }
 .attachment-drop-icon .fa-svg-icon { font-size: 1.18rem; }
-
-/* Legacy V31 controls are intentionally superseded by icon-only actions. */
-.topic-attachment-download,
-.attachment-remove { display: none !important; }
 
 @media (max-width: 720px) {
   .attachment-disclosure-toggle { min-height: 38px; padding: 7px 9px; }
@@ -4672,13 +4630,9 @@ textarea::placeholder {
 .file-type-audio { color: #9333ea; }
 .file-type-video { color: #be123c; }
 .file-type-code { color: #0369a1; }
-.admin-attachment-disclosure.is-dragging {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 12%, transparent);
-}
 
 
-/* V33 · final topic-card flow and attachment-editor consistency */
+/* Topic cards and attachment editor */
 /* Keep the two topic KPIs visually attached to the action row. */
 .topic-card .topic-stats { margin-top: auto; }
 .topic-card .topic-footer { margin-top: 0; }
@@ -4784,7 +4738,7 @@ textarea::placeholder {
 }
 
 
-/* V34 · natural row flow, compact user actions and progressive modal scroll fades */
+/* Administration rows and modal scroll fades */
 .modal-scroll-shell {
   --modal-top-fade: 0;
   --modal-bottom-fade: 0;
@@ -4855,9 +4809,8 @@ textarea::placeholder {
 .modal-scroll-shell > .modal-close { z-index: 6; }
 
 
-/* V35 · BombAvTest branding, production legal details and real Ávila firefighter syllabus */
+/* Topic badge geometry and optical alignment */
 
-/* BEGIN topic-code-perfect-square-fix */
 /*
  * Topic codes are identifiers, not size-defining content.
  * Keep every badge geometrically square and center its line box exactly.
@@ -4931,9 +4884,7 @@ textarea::placeholder {
     flex: 0 0 38px;
   }
 }
-/* END topic-code-perfect-square-fix */
 
-/* BEGIN topic-code-optical-centering */
 /*
  * Optical correction for the font metrics.
  * With border-box sizing, 2px of top padding moves the centered glyphs
@@ -4948,4 +4899,3 @@ textarea::placeholder {
   padding-bottom: 0;
   padding-left: 0;
 }
-/* END topic-code-optical-centering */
