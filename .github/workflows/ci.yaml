@@ -132,6 +132,21 @@ jobs:
           print("Database migrations OK")
           PY
 
+  dependencies:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Audit Python dependencies
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: requirements.txt
+
+
   system:
     name: Docker + System + E2E
     runs-on: ubuntu-latest
@@ -141,6 +156,7 @@ jobs:
       - unit-property
       - integration
       - migrations
+      - dependencies
 
     steps:
       - name: Checkout
