@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from backend import auth
-from backend.config import MAX_ATTACHMENTS_PER_UPLOAD, MAX_JSON_BYTES
+from backend.config import (
+    MAX_ATTACHMENTS_PER_UPLOAD,
+    MAX_JSON_BYTES,
+    MAX_UPLOAD_REQUEST_BYTES,
+)
 
 
 def test_login_rejects_malformed_and_non_object_json(client):
@@ -23,20 +26,24 @@ def test_oversized_json_is_rejected_before_application_processing(client):
         content=body,
         headers={"Content-Type": "application/json"},
     )
-    assert response.status_code == 400
+    assert response.status_code == 413
     assert response.json()["ok"] is False
 
 
-def test_oversized_multipart_request_is_rejected_by_middleware(admin, monkeypatch):
+def test_oversized_multipart_request_is_rejected_by_middleware(admin):
     client, headers = admin
-    monkeypatch.setattr(auth, "MAX_UPLOAD_REQUEST_BYTES", 64)
 
     response = client.post(
         "/api/admin/topic-attachment-drafts",
-        headers=headers,
-        files={"file": ("large.txt", b"x" * 256, "text/plain")},
+        content=b"--test--\r\n",
+        headers={
+            **headers,
+            "Content-Type": "multipart/form-data; boundary=test",
+            "Content-Length": str(MAX_UPLOAD_REQUEST_BYTES + 1),
+        },
     )
     assert response.status_code == 413
+    assert response.json()["ok"] is False
 
 
 def test_attachment_batch_limit_is_enforced_before_storage(admin):

@@ -9,6 +9,7 @@ from starlette.requests import Request
 from . import admin, auth, practice, simulations, statistics
 from .config import FRONTEND_DIR, app_revision, app_version
 from .db import get_db
+from .request_limits import RequestBodyLimitMiddleware
 
 app = FastAPI(
     title="BombAvTest",
@@ -19,6 +20,7 @@ app = FastAPI(
 )
 
 app.middleware("http")(auth.bombavtest_request_context)
+app.add_middleware(RequestBodyLimitMiddleware)
 app.include_router(auth.router)
 app.include_router(practice.router)
 app.include_router(simulations.router)

@@ -19,6 +19,7 @@ venv/
 *-shm
 data/*
 !data/.gitkeep
+sql-scripts
 
 # OS/editor
 .DS_Store
