@@ -5,15 +5,11 @@ on:
     branches:
       - main
 
-  push:
-    branches:
-      - main
-
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
