@@ -505,7 +505,7 @@
     .question-progress { margin-bottom: 14px; }
     .question-progress-top { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .8rem; font-weight: 700; margin-bottom: 8px; }
     .progress-track { height: 8px; border-radius: 99px; overflow: hidden; background: #dfe8e9; }
-    .progress-track span { display: block; height: 100%; background: var(--brand); border-radius: inherit; transition: width .25s ease; }
+    .progress-track span { display: block; width: 3.33%; height: 100%; background: var(--brand); border-radius: inherit; transition: width .25s ease; }
     .progress-track[hidden] { display: none; }
 
     .question-card { padding: clamp(23px, 4vw, 38px); }
@@ -2597,6 +2597,12 @@ body { background: var(--bg); }
 .skeleton-table-row {
   display: grid;
   grid-template-columns: repeat(var(--skeleton-cols, 6), minmax(90px, 1fr));
+}
+.skeleton-cols-5 { --skeleton-cols: 5; }
+.skeleton-cols-6 { --skeleton-cols: 6; }
+.skeleton-cols-7 { --skeleton-cols: 7; }
+.skeleton-home-title { width: 180px; height: 32px; }
+.skeleton-table-head {
   gap: 18px;
   align-items: center;
   min-height: 48px;
@@ -4267,6 +4273,23 @@ textarea::placeholder {
   -webkit-mask: var(--fa-svg) center / contain no-repeat;
   mask: var(--fa-svg) center / contain no-repeat;
 }
+
+.fa-svg-regular-folder { --fa-svg: url('/assets/icons/regular/folder.svg'); }
+.fa-svg-solid-chevron-down { --fa-svg: url('/assets/icons/solid/chevron-down.svg'); }
+.fa-svg-solid-cloud-arrow-up { --fa-svg: url('/assets/icons/solid/cloud-arrow-up.svg'); }
+.fa-svg-solid-file-audio { --fa-svg: url('/assets/icons/solid/file-audio.svg'); }
+.fa-svg-solid-file-code { --fa-svg: url('/assets/icons/solid/file-code.svg'); }
+.fa-svg-solid-file-excel { --fa-svg: url('/assets/icons/solid/file-excel.svg'); }
+.fa-svg-solid-file-image { --fa-svg: url('/assets/icons/solid/file-image.svg'); }
+.fa-svg-solid-file-lines { --fa-svg: url('/assets/icons/solid/file-lines.svg'); }
+.fa-svg-solid-file-pdf { --fa-svg: url('/assets/icons/solid/file-pdf.svg'); }
+.fa-svg-solid-file-powerpoint { --fa-svg: url('/assets/icons/solid/file-powerpoint.svg'); }
+.fa-svg-solid-file { --fa-svg: url('/assets/icons/solid/file.svg'); }
+.fa-svg-solid-file-video { --fa-svg: url('/assets/icons/solid/file-video.svg'); }
+.fa-svg-solid-file-word { --fa-svg: url('/assets/icons/solid/file-word.svg'); }
+.fa-svg-solid-file-zipper { --fa-svg: url('/assets/icons/solid/file-zipper.svg'); }
+.fa-svg-solid-trash-can { --fa-svg: url('/assets/icons/solid/trash-can.svg'); }
+.fa-svg-solid-xmark { --fa-svg: url('/assets/icons/solid/xmark.svg'); }
 
 .file-type-icon {
   position: relative;

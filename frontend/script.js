@@ -123,7 +123,8 @@ function fileKind(name = '', mime = '') {
 }
 
 function libraryIcon(name, style = 'solid', className = '') {
-  return `<span class="fa-svg-icon ${escapeHtml(className)}" style="--fa-svg:url('/assets/icons/${style}/${name}.svg')" aria-hidden="true"></span>`;
+  const iconClass = `fa-svg-${style}-${name}`;
+  return `<span class="fa-svg-icon ${escapeHtml(iconClass)} ${escapeHtml(className)}" aria-hidden="true"></span>`;
 }
 
 function fileTypeIcon(name, mime) {
@@ -489,7 +490,7 @@ function renderHomeSkeleton() {
   const heatmap = byId('homeHeatmap');
   const range = byId('homeHeatmapRange');
   const grid = byId('topicsGrid');
-  if (title) title.innerHTML = '<span class="skeleton-block" style="width:180px;height:32px"></span>';
+  if (title) title.innerHTML = '<span class="skeleton-block skeleton-home-title"></span>';
   if (total) total.innerHTML = '<span class="skeleton-block skeleton-number"></span>';
   if (heatmap) {
     heatmap.classList.add('is-loading-heatmap');
@@ -565,7 +566,7 @@ function renderAdminSkeleton() {
   if (counter) counter.innerHTML = skeletonLine('74px', '10px');
   const exportButton = byId('adminExportBtn');
   if (exportButton) exportButton.disabled = true;
-  target.innerHTML = `<div class="admin-table-wrap skeleton-table-wrap" style="--skeleton-cols:${columns}" aria-hidden="true">
+  target.innerHTML = `<div class="admin-table-wrap skeleton-table-wrap skeleton-cols-${columns}" aria-hidden="true">
     <div class="skeleton-table-head">${Array.from({ length: columns }, () => skeletonLine('72%', '10px')).join('')}</div>
     ${Array.from({ length: 7 }, (_, row) => `<div class="skeleton-table-row">${Array.from({ length: columns }, (_, col) => skeletonLine(`${52 + ((row + col) % 4) * 10}%`, '11px')).join('')}</div>`).join('')}
   </div>`;
@@ -1848,7 +1849,7 @@ function renderTopicMetricChart(targetId, items, mode, options = {}) {
                 <line class="topic-error-cap" x1="${(errorLeft + errorWidth).toFixed(2)}" y1="3" x2="${(errorLeft + errorWidth).toFixed(2)}" y2="17" vector-effect="non-scaling-stroke"></line>` : ''}
               ${referencePos != null ? `
                 <line class="topic-reference-halo" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke"></line>
-                <line class="topic-reference-marker" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke" style="stroke:${topicColor}"></line>` : ''}
+                <line class="topic-reference-marker" x1="${referencePos.toFixed(2)}" y1="1" x2="${referencePos.toFixed(2)}" y2="19" vector-effect="non-scaling-stroke" stroke="${topicColor}"></line>` : ''}
             </svg>` : ''}
           </div>
           <div class="topic-metric-value"><b>${valueText}</b>${isAverage && error > 0 ? `<small>± ${formatDecimal(error)}${isAccuracy ? ' %' : ''}</small>` : ''}</div>
@@ -1959,10 +1960,10 @@ function renderLineChart(targetId, series, options = {}) {
       <defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
       ${grid}${xLabels}
       <path d="${areaPath}" fill="url(#${gradientId})"></path>
-      <path class="chart-line" style="stroke:${color}" d="${linePath}"></path>
+      <path class="chart-line" stroke="${color}" d="${linePath}"></path>
       <g class="chart-hover-marker" hidden>
         <line class="chart-hover-guide" x1="0" y1="${pad.top}" x2="0" y2="${pad.top + plotH}"></line>
-        <circle class="chart-hover-dot" style="stroke:${color}" cx="0" cy="0" r="4"></circle>
+        <circle class="chart-hover-dot" stroke="${color}" cx="0" cy="0" r="4"></circle>
       </g>
       <rect class="chart-hover-surface" x="${pad.left}" y="${pad.top}" width="${plotW}" height="${plotH}" fill="transparent"></rect>
     </svg>
