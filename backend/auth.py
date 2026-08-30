@@ -87,8 +87,8 @@ class _RequestProxy:
 
     @property
     def remote_addr(self) -> str | None:
-        client = self._request().client
-        return client.host if client else None
+        current = self._request()
+        return current.client.host if current.client else None
 
     @property
     def is_secure(self) -> bool:
