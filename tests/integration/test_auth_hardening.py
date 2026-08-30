@@ -6,8 +6,8 @@ from backend import auth
 def test_unknown_user_still_runs_password_verification(client, monkeypatch):
     calls = []
 
-    def fake_verify(password: str, salt_hex: str, stored_hash: str) -> bool:
-        calls.append((password, salt_hex, stored_hash))
+    def fake_verify(password: str, stored_hash: str) -> bool:
+        calls.append((password, stored_hash))
         return False
 
     monkeypatch.setattr(auth, "verify_password", fake_verify)
@@ -19,6 +19,4 @@ def test_unknown_user_still_runs_password_verification(client, monkeypatch):
 
     assert response.status_code == 401
     assert response.json()["code"] == "INVALID_CREDENTIALS"
-    assert calls == [
-        ("Clave123", auth.DUMMY_PASSWORD_SALT, auth.DUMMY_PASSWORD_HASH)
-    ]
+    assert calls == [("Clave123", auth.DUMMY_PASSWORD_HASH)]

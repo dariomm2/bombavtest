@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import hashlib
 import os
-import secrets
 
 from yoyo import step
 
+from backend.auth import hash_password
+
 __depends__ = {"001_create_schema"}
 
-PBKDF2_ITERATIONS = 310_000
 
 
 def create_initial_admin(conn) -> None:
@@ -28,20 +27,12 @@ def create_initial_admin(conn) -> None:
     if len(username) > 80 or len(password) > 256 or len(display_name) > 160:
         raise RuntimeError("Las variables del administrador inicial no son válidas.")
 
-    salt_hex = secrets.token_hex(16)
-    password_hash = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        bytes.fromhex(salt_hex),
-        PBKDF2_ITERATIONS,
-    ).hex()
-
     cursor.execute(
         """
-        INSERT INTO users(username, display_name, password_salt, password_hash, role, is_active, created_at)
-        VALUES (?, ?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
+        INSERT INTO users(username, display_name, password_hash, role, is_active, created_at)
+        VALUES (?, ?, ?, 'admin', 1, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
         """,
-        (username, display_name, salt_hex, password_hash),
+        (username, display_name, hash_password(password)),
     )
 
 

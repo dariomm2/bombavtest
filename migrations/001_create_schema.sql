@@ -5,7 +5,6 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
     display_name TEXT NOT NULL,
-    password_salt TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
     is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),

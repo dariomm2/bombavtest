@@ -3,7 +3,6 @@ from __future__ import annotations
 import mimetypes
 import os
 import re
-import secrets
 import sqlite3
 import unicodedata
 import uuid
@@ -15,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, File, UploadFile
 
 from .auth import (
-    api_error, api_ok, json_body, password_digest, request, require_admin, require_auth,
+    api_error, api_ok, hash_password, json_body, request, require_admin, require_auth,
     require_csrf, user_id, utc_iso, utc_now,
 )
 from .config import MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_UPLOAD
@@ -202,7 +201,7 @@ def clean_username(value: Any) -> str:
         raise ValueError("El usuario debe tener entre 3 y 50 caracteres y usar solo letras, números, punto, guion o guion bajo.")
     return username
 
-def new_password_values(password: str) -> tuple[str, str]:
+def new_password_hash(password: str) -> str:
     if len(password) < 8:
         raise ValueError("La contraseña debe tener al menos 8 caracteres.")
     if len(password) > 256:
@@ -211,8 +210,7 @@ def new_password_values(password: str) -> tuple[str, str]:
         raise ValueError("La contraseña debe incluir al menos una mayúscula.")
     if not any(char.isdigit() for char in password):
         raise ValueError("La contraseña debe incluir al menos un número.")
-    salt = secrets.token_bytes(16).hex()
-    return salt, password_digest(password, salt)
+    return hash_password(password)
 
 def username_base_from_name(display_name: str) -> str:
     normalized = unicodedata.normalize("NFKD", display_name)
@@ -853,7 +851,7 @@ def admin_user_create():
         if role not in {"user", "admin"}:
             raise ValueError("El rol no es válido.")
         topic_ids = clean_user_topic_ids(data.get("topic_ids"), role)
-        salt, digest = new_password_values(str(data.get("password", "")))
+        digest = new_password_hash(str(data.get("password", "")))
     except ValueError as exc:
         return api_error(str(exc))
 
@@ -862,10 +860,10 @@ def admin_user_create():
         db.execute("BEGIN IMMEDIATE")
         cursor = db.execute(
             """
-            INSERT INTO users(username, display_name, password_salt, password_hash, role, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, 1, ?)
+            INSERT INTO users(username, display_name, password_hash, role, is_active, created_at)
+            VALUES (?, ?, ?, ?, 1, ?)
             """,
-            (username, display_name, salt, digest, role, utc_iso()),
+            (username, display_name, digest, role, utc_iso()),
         )
         new_user_id = int(cursor.lastrowid)
         if role == "user":
@@ -898,7 +896,7 @@ def admin_user_update(target_user_id: int):
             raise ValueError("El rol no es válido.")
         topic_ids = clean_user_topic_ids(data.get("topic_ids"), role)
         password = str(data.get("password", ""))
-        password_values = new_password_values(password) if password else None
+        password_hash = new_password_hash(password) if password else None
     except ValueError as exc:
         return api_error(str(exc))
 
@@ -912,18 +910,17 @@ def admin_user_update(target_user_id: int):
             db.rollback()
             return api_error("Debe quedar al menos un administrador activo.", 409)
 
-        if password_values:
-            salt, digest = password_values
+        if password_hash:
             db.execute(
-                "UPDATE users SET username = ?, display_name = ?, role = ?, password_salt = ?, password_hash = ? WHERE id = ?",
-                (username, display_name, role, salt, digest, target_user_id),
+                "UPDATE users SET username = ?, display_name = ?, role = ?, password_hash = ? WHERE id = ?",
+                (username, display_name, role, password_hash, target_user_id),
             )
         else:
             db.execute(
                 "UPDATE users SET username = ?, display_name = ?, role = ? WHERE id = ?",
                 (username, display_name, role, target_user_id),
             )
-        if password_values:
+        if password_hash:
             # No push is involved: existing devices simply fail authentication on their next request.
             db.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
         db.execute("DELETE FROM user_topics WHERE user_id = ?", (target_user_id,))

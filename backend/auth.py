@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import os
 import re
@@ -15,6 +14,9 @@ from functools import wraps
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import InvalidHashError, VerificationError
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
@@ -23,16 +25,35 @@ from .config import (
     LOGIN_RATE_MAX,
     LOGIN_RATE_MAX_KEYS,
     LOGIN_RATE_WINDOW,
-    PBKDF2_ITERATIONS,
     SESSION_COOKIE,
     SESSION_DAYS,
 )
 from .db import bind_db, connect_db, get_db, reset_db
 
+PASSWORD_HASHER = PasswordHasher(
+    time_cost=2,
+    memory_cost=19_456,
+    parallelism=1,
+    hash_len=32,
+    salt_len=16,
+    type=Type.ID,
+)
+
+
+def hash_password(password: str) -> str:
+    return PASSWORD_HASHER.hash(password)
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        return PASSWORD_HASHER.verify(stored_hash, password)
+    except (VerificationError, InvalidHashError):
+        return False
+
+
 MADRID_TZ = ZoneInfo("Europe/Madrid")
 LOGIN_ATTEMPTS: dict[str, deque[float]] = defaultdict(deque)
-DUMMY_PASSWORD_SALT = "00" * 16
-DUMMY_PASSWORD_HASH = "00" * 32
+DUMMY_PASSWORD_HASH = hash_password("BombAvTest dummy password")
 router = APIRouter()
 
 _current_request: ContextVar[Request | None] = ContextVar("bombavtest_request", default=None)
@@ -40,16 +61,6 @@ _current_session: ContextVar[sqlite3.Row | None] = ContextVar("bombavtest_sessio
 _json_body_value: ContextVar[Any] = ContextVar("bombavtest_json_body", default=None)
 
 
-def password_digest(password: str, salt_hex: str) -> str:
-    salt = bytes.fromhex(salt_hex)
-    return hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS
-    ).hex()
-
-
-def verify_password(password: str, salt_hex: str, stored_hash: str) -> bool:
-    candidate = password_digest(password, salt_hex)
-    return hmac.compare_digest(candidate, stored_hash)
 
 class _GProxy:
     @property
@@ -307,14 +318,8 @@ def login():
         "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)
     ).fetchone()
 
-    if account and account["is_active"]:
-        password_salt = account["password_salt"]
-        password_hash = account["password_hash"]
-    else:
-        password_salt = DUMMY_PASSWORD_SALT
-        password_hash = DUMMY_PASSWORD_HASH
-
-    password_valid = verify_password(password, password_salt, password_hash)
+    password_hash = account["password_hash"] if account and account["is_active"] else DUMMY_PASSWORD_HASH
+    password_valid = verify_password(password, password_hash)
     if not account or not account["is_active"] or not password_valid:
         record_failed_login(rate_keys)
         return api_error("Usuario o contraseña incorrectos.", 401, "INVALID_CREDENTIALS")
