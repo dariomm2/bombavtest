@@ -69,5 +69,5 @@ python -m playwright install --with-deps chromium
 Run the full test suite:
 
 ```bash
-python -m pytest -v tests
+python -m pytest -v
 ```

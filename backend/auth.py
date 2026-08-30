@@ -31,6 +31,8 @@ from .db import bind_db, connect_db, get_db, reset_db
 
 MADRID_TZ = ZoneInfo("Europe/Madrid")
 LOGIN_ATTEMPTS: dict[str, deque[float]] = defaultdict(deque)
+DUMMY_PASSWORD_SALT = "00" * 16
+DUMMY_PASSWORD_HASH = "00" * 32
 router = APIRouter()
 
 _current_request: ContextVar[Request | None] = ContextVar("bombavtest_request", default=None)
@@ -304,9 +306,16 @@ def login():
     account = db.execute(
         "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)
     ).fetchone()
-    if not account or not account["is_active"] or not verify_password(
-        password, account["password_salt"], account["password_hash"]
-    ):
+
+    if account and account["is_active"]:
+        password_salt = account["password_salt"]
+        password_hash = account["password_hash"]
+    else:
+        password_salt = DUMMY_PASSWORD_SALT
+        password_hash = DUMMY_PASSWORD_HASH
+
+    password_valid = verify_password(password, password_salt, password_hash)
+    if not account or not account["is_active"] or not password_valid:
         record_failed_login(rate_keys)
         return api_error("Usuario o contraseña incorrectos.", 401, "INVALID_CREDENTIALS")
     clear_login_attempts(rate_keys)
