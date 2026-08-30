@@ -4195,13 +4195,16 @@ textarea::placeholder {
   min-width: 0;
 }
 .topic-heading-row .topic-icon {
-  width: auto;
+  width: 42px;
   min-width: 42px;
-  max-width: 78px;
-  padding: 0 8px;
+  max-width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: center;
 }
 .topic-heading-row h3 {
   min-width: 0;
@@ -4332,24 +4335,30 @@ textarea::placeholder {
 .attachment-drop-title { font-size: .74rem; font-weight: 790; }
 .attachment-drop-zone small { color: var(--muted); font-size: .61rem; font-weight: 620; }
 
-/* String topic codes need intrinsic width in every topic selector. */
-.exam-topic-option { grid-template-columns: auto minmax(0, 1fr) 20px; }
+/* Topic codes stay square; long codes may overflow symmetrically. */
+.exam-topic-option { grid-template-columns: 34px minmax(0, 1fr) 20px; }
 .exam-topic-number {
-  width: auto;
+  width: 34px;
   min-width: 34px;
-  max-width: 72px;
-  padding: 0 7px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 34px;
+  height: 34px;
+  padding: 0;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
+  text-align: center;
 }
 .admin-topic-number {
-  min-width: 34px;
-  max-width: 76px;
-  padding-inline: 7px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
+  text-align: center;
 }
 
 .admin-user-topics-field {
@@ -4378,8 +4387,11 @@ textarea::placeholder {
 @media (max-width: 720px) {
   .topic-heading-row { gap: 9px; }
   .topic-heading-row .topic-icon {
+    width: 38px;
     min-width: 38px;
+    max-width: 38px;
     height: 38px;
+    flex: 0 0 38px;
     border-radius: 11px;
     font-size: .78rem;
   }
@@ -4399,23 +4411,28 @@ textarea::placeholder {
   .admin-user-topics-head .exam-topic-actions { margin-left: auto; }
 }
 
-/* Hierarchical codes must remain readable outside the home cards too. */
+/* Reuse the same fixed-square topic marker outside the home cards too. */
 .topic-metric-label .topic-icon,
 .exam-config-topic-heading .topic-icon {
-  width: auto;
+  width: 42px;
   min-width: 42px;
-  max-width: 78px;
-  flex: 0 0 auto;
-  padding-inline: 7px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
+  text-align: center;
 }
 @media (max-width: 720px) {
   .topic-metric-label .topic-icon,
   .exam-config-topic-heading .topic-icon {
+    width: 38px;
     min-width: 38px;
-    max-width: 68px;
+    max-width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
   }
 }
 
@@ -4816,3 +4833,96 @@ textarea::placeholder {
 
 
 /* V35 · BombAvTest branding, production legal details and real Ávila firefighter syllabus */
+
+/* BEGIN topic-code-perfect-square-fix */
+/*
+ * Topic codes are identifiers, not size-defining content.
+ * Keep every badge geometrically square and center its line box exactly.
+ * Long codes intentionally overflow symmetrically instead of resizing the badge.
+ */
+.topic-icon,
+.admin-topic-number,
+.exam-topic-number {
+  padding: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Standard topic badge: 42 x 42. */
+.topic-icon,
+.topic-heading-row .topic-icon,
+.topic-metric-label .topic-icon,
+.exam-config-topic-heading .topic-icon {
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  flex: 0 0 42px;
+}
+
+/* Administration topic badge: 38 x 38. */
+.admin-topic-number {
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  flex: 0 0 38px;
+}
+
+/* Exam/practice topic selector badge: 34 x 34. */
+.exam-topic-option {
+  grid-template-columns: 34px minmax(0, 1fr) 20px;
+}
+
+.exam-topic-number {
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  justify-self: center;
+}
+
+/* Existing mobile design uses the smaller 38 x 38 topic badge. */
+@media (max-width: 720px) {
+  .topic-icon,
+  .topic-heading-row .topic-icon,
+  .topic-metric-label .topic-icon,
+  .exam-config-topic-heading .topic-icon {
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    flex: 0 0 38px;
+  }
+}
+/* END topic-code-perfect-square-fix */
+
+/* BEGIN topic-code-optical-centering */
+/*
+ * Optical correction for the font metrics.
+ * With border-box sizing, 2px of top padding moves the centered glyphs
+ * approximately 1px downward without changing the badge geometry.
+ */
+.topic-icon,
+.admin-topic-number,
+.exam-topic-number {
+  box-sizing: border-box;
+  padding-top: 2px;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+}
+/* END topic-code-optical-centering */
