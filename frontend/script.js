@@ -2321,21 +2321,12 @@ function exportAdminCsv() {
   showToast(`CSV de ${ADMIN_META[tab].plural.toLocaleLowerCase('es')} exportado.`);
 }
 
-function suggestedTopicNumber() {
-  const topics = state.admin.data.topics || [];
-  const integerCodes = topics
-    .map(topic => String(topic.number ?? '').trim())
-    .filter(value => /^\d+$/.test(value))
-    .map(Number);
-  return String((integerCodes.length ? Math.max(...integerCodes) : 0) + 1);
-}
 
 function topicFormHtml(item = null) {
-  const suggested = item?.number ?? suggestedTopicNumber();
   const color = item?.color ? safeColor(item.color) : randomTopicColor();
   return `
     <div class="admin-form-grid two">
-      <label class="field"><span>Número</span><input id="adminTopicNumber" type="text" maxlength="32" value="${escapeHtml(suggested)}" required autocomplete="off"></label>
+      <label class="field"><span>Número</span><input id="adminTopicNumber" type="text" maxlength="32" value="${escapeHtml(item?.number || '')}" required autocomplete="off"></label>
       <label class="field"><span>Color</span><input id="adminTopicColor" class="color-input" type="color" value="${color}" required></label>
       <label class="field full"><span>Nombre</span><input id="adminTopicName" maxlength="160" value="${escapeHtml(item?.name || '')}" required></label>
       <div class="field full admin-attachments-field">
