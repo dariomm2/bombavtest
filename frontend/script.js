@@ -518,6 +518,32 @@ function renderQuestionSkeleton() {
   byId('questionFeedback').innerHTML = '';
 }
 
+function skeletonTopicMetricChart() {
+  return `<div class="skeleton-topic-metric" aria-hidden="true">
+    <div class="topic-metric-rows">
+      ${Array.from({ length: 6 }, (_, row) => {
+        const nameWidth = 58 + (row % 3) * 11;
+        const barWidth = 42 + (row % 4) * 12;
+        return `<div class="topic-metric-row skeleton-topic-metric-row">
+          <div class="topic-metric-label">
+            <span class="topic-icon skeleton-block skeleton-topic-icon"></span>
+            <span class="skeleton-topic-name">${skeletonLine(`${nameWidth}%`, '10px')}</span>
+          </div>
+          <div class="topic-metric-plot">
+            <span class="topic-metric-bar skeleton-block skeleton-topic-bar" style="width:${barWidth}%"></span>
+          </div>
+          <div class="topic-metric-value">${skeletonLine('36px', '10px')}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="topic-metric-axis skeleton-topic-metric-axis">
+      <span></span>
+      <div>${skeletonLine('20px', '7px')}${skeletonLine('32px', '7px')}</div>
+      <span></span>
+    </div>
+  </div>`;
+}
+
 function renderStatsSkeleton() {
   const target = byId('statsSummary');
   const isAll = state.user?.role === 'admin' && state.statsScope.mode === 'all';
@@ -546,7 +572,7 @@ function renderStatsSkeleton() {
     const node = byId(id);
     if (!node) return;
     node.innerHTML = index < 2
-      ? `<div class="skeleton-bars" aria-hidden="true">${Array.from({ length: 6 }, (_, row) => `<div class="skeleton-bar-row">${skeletonLine(`${54 + (row % 3) * 10}%`, '12px')}${skeletonLine(`${48 + (row % 4) * 9}%`, '10px')}</div>`).join('')}</div>`
+      ? skeletonTopicMetricChart()
       : `<div class="skeleton-chart" aria-hidden="true">${skeletonLine('100%', '100%')}</div>`;
   });
 }
@@ -564,15 +590,86 @@ function renderStatsUserSkeleton() {
 function renderAdminSkeleton() {
   const target = byId('adminList');
   if (!target) return;
-  const columns = state.admin.tab === 'users' ? 7 : state.admin.tab === 'topics' ? 5 : 6;
+  const tab = state.admin.tab;
   const counter = byId('adminResultCount');
   if (counter) counter.innerHTML = skeletonLine('74px', '10px');
   const exportButton = byId('adminExportBtn');
   if (exportButton) exportButton.disabled = true;
-  target.innerHTML = `<div class="admin-table-wrap skeleton-table-wrap skeleton-cols-${columns}" aria-hidden="true">
-    <div class="skeleton-table-head">${Array.from({ length: columns }, () => skeletonLine('72%', '10px')).join('')}</div>
-    ${Array.from({ length: 7 }, (_, row) => `<div class="skeleton-table-row">${Array.from({ length: columns }, (_, col) => skeletonLine(`${52 + ((row + col) % 4) * 10}%`, '11px')).join('')}</div>`).join('')}
-  </div>`;
+
+  const head = width => skeletonLine(width, '14px');
+  const line = (width, height = '10px') => skeletonLine(width, height);
+  const actions = count => `<div class="admin-row-actions skeleton-admin-actions">${
+    Array.from({ length: count }, (_, index) => `<span class="skeleton-block skeleton-admin-action skeleton-admin-action-${index + 1}"></span>`).join('')
+  }</div>`;
+
+  if (tab === 'topics') {
+    target.innerHTML = `<div class="admin-table-wrap" aria-hidden="true"><table class="admin-table admin-table-topics skeleton-admin-table">
+      <thead><tr>
+        <th class="admin-number-col">${head('26px')}</th>
+        <th>${head('76px')}</th>
+        <th>${head('62px')}</th>
+        <th>${head('58px')}</th>
+        <th class="admin-actions-col">${head('62px')}</th>
+      </tr></thead>
+      <tbody>${Array.from({ length: 7 }, (_, row) => `<tr>
+        <td><span class="admin-topic-number skeleton-block skeleton-admin-topic-number"></span></td>
+        <td><span class="admin-cell-title skeleton-admin-cell-title">${line(`${58 + (row % 3) * 12}%`, '11px')}</span></td>
+        <td><span class="admin-count-badge skeleton-block skeleton-admin-count"></span></td>
+        <td>${line(`${62 + (row % 2) * 14}%`, '10px')}</td>
+        <td>${actions(2)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+    return;
+  }
+
+  if (tab === 'questions') {
+    target.innerHTML = `<div class="admin-table-wrap" aria-hidden="true"><table class="admin-table admin-table-questions skeleton-admin-table">
+      <thead><tr>
+        <th>${head('72px')}</th>
+        <th>${head('54px')}</th>
+        <th>${head('68px')}</th>
+        <th>${head('60px')}</th>
+        <th>${head('58px')}</th>
+        <th class="admin-actions-col">${head('62px')}</th>
+      </tr></thead>
+      <tbody>${Array.from({ length: 7 }, (_, row) => `<tr>
+        <td><span class="skeleton-admin-question">${line(`${78 + (row % 2) * 12}%`, '10px')}${line(`${52 + (row % 3) * 10}%`, '10px')}</span></td>
+        <td><span class="admin-topic-label skeleton-admin-topic-label"><span class="admin-topic-dot skeleton-block"></span>${line(`${56 + (row % 3) * 10}%`, '10px')}</span></td>
+        <td><span class="admin-count-badge skeleton-block skeleton-admin-count"></span></td>
+        <td>${line('44px', '10px')}</td>
+        <td>${line(`${62 + (row % 2) * 14}%`, '10px')}</td>
+        <td>${actions(2)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+    return;
+  }
+
+  target.innerHTML = `<div class="admin-table-wrap" aria-hidden="true"><table class="admin-table admin-table-users skeleton-admin-table">
+    <thead><tr>
+      <th>${head('66px')}</th>
+      <th>${head('32px')}</th>
+      <th>${head('60px')}</th>
+      <th>${head('60px')}</th>
+      <th>${head('34px')}</th>
+      <th>${head('34px')}</th>
+      <th class="admin-actions-col">${head('62px')}</th>
+    </tr></thead>
+    <tbody>${Array.from({ length: 7 }, (_, row) => `<tr>
+      <td><div class="admin-cell-main">
+        <div class="admin-user-identity">
+          <span class="admin-user-avatar skeleton-block skeleton-admin-avatar"></span>
+          <span class="skeleton-admin-user-copy">${line(`${92 + (row % 2) * 18}px`, '11px')}${line(`${70 + (row % 3) * 12}px`, '9px')}</span>
+        </div>
+        <span class="user-state-badge skeleton-block skeleton-admin-state"></span>
+      </div></td>
+      <td><span class="role-badge skeleton-block skeleton-admin-role"></span></td>
+      <td>${line(`${72 + (row % 3) * 8}px`, '10px')}</td>
+      <td>${line('44px', '10px')}</td>
+      <td>${line(`${58 + (row % 2) * 12}px`, '10px')}</td>
+      <td>${line(`${58 + ((row + 1) % 2) * 12}px`, '10px')}</td>
+      <td>${actions(3)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function updateLoginState() {
