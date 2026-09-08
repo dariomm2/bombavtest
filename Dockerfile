@@ -10,17 +10,17 @@ LABEL org.opencontainers.image.title="BombAvTest" \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src \
     BOMBAVTEST_DB_PATH=/data/app.db \
     BOMBAVTEST_VERSION=${BOMBAVTEST_VERSION} \
     BOMBAVTEST_REVISION=${BOMBAVTEST_REVISION}
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml ./
+RUN python -m pip install --no-cache-dir --group runtime
 
-COPY backend ./backend
-COPY frontend ./frontend
+COPY src ./src
 COPY migrations ./migrations
 COPY --chmod=755 entrypoint.sh ./
 
