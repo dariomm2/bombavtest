@@ -16,11 +16,10 @@ BombAvTest is a web application for firefighter exam preparation, featuring ques
 ## Project Structure
 
 ```text
-backend/       Backend and API
-frontend/      Web interface
-migrations/    Database migrations
-tests/         Test suite
-data/          Local SQLite data
+src/backend/    Backend and API
+src/frontend/   Web interface
+migrations/     Database migrations
+tests/          Test suite
 ```
 
 In production, the SQLite database is stored at `/data/app.db`.
@@ -29,12 +28,36 @@ File attachments are stored using S3-compatible object storage. MinIO is used as
 
 Yoyo migrations are automatically applied before Uvicorn starts.
 
+## Environment Variables
+
+BombAvTest uses the following environment variables:
+
+```env
+# App
+BOMBAVTEST_DB_PATH=/data/app.db
+
+# Initial admin (required only when users table is empty)
+BOMBAVTEST_ADMIN_USERNAME=admin
+BOMBAVTEST_ADMIN_PASSWORD=admin
+BOMBAVTEST_ADMIN_DISPLAY_NAME=Admin
+
+# S3-compatible storage
+S3_ENDPOINT_URL=http://minio:9000
+S3_BUCKET=bombavtest
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+S3_REGION=us-east-1
+S3_ADDRESSING_STYLE=path
+```
+
+The values required for local development are already configured in `compose.yaml`.
+
 ## Local Development
 
 Start the application and MinIO:
 
 ```bash
-docker compose -f docker-compose.local.yml up --build -d
+docker compose up --build -d
 ```
 
 BombAvTest:
@@ -52,7 +75,7 @@ http://localhost:9001
 To stop the environment and remove all local data:
 
 ```bash
-docker compose -f docker-compose.local.yml down -v && rm -rf ./data/*
+docker compose down -v
 ```
 
 > Warning: This removes both the local SQLite database and the MinIO volume.
@@ -62,7 +85,7 @@ docker compose -f docker-compose.local.yml down -v && rm -rf ./data/*
 Install the development dependencies:
 
 ```bash
-pip install -r requirements-dev.txt
+python -m pip install --group dev
 python -m playwright install --with-deps chromium
 ```
 

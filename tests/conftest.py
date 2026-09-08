@@ -227,7 +227,7 @@ def live_user_factory():
 
     return create
 
-COMPOSE_FILE = ROOT / "tests" / "docker-compose.test.yml"
+COMPOSE_FILE = ROOT / "tests" / "compose.test.yml"
 
 
 def compose(*args: str, check: bool = True) -> subprocess.CompletedProcess:
