@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 import sqlite3
 from collections import defaultdict
 from datetime import date, timedelta
@@ -15,6 +16,7 @@ from .auth import (
 from .db import get_db
 
 router = APIRouter()
+DAILY_TEST_QUESTION_COUNT = 10
 
 def topic_payload(row: sqlite3.Row) -> dict[str, Any]:
     return {
@@ -126,6 +128,31 @@ def get_question_payload(question_id: int, include_local_feedback: bool = False)
         payload["explanation"] = question["explanation"] or None
     return payload
 
+def daily_test_summary(uid: int, today: date | None = None) -> dict[str, Any]:
+    current_day = today or madrid_today()
+    rows = get_db().execute(
+        """SELECT completed_on FROM daily_tests
+           WHERE user_id = ? AND completed_on <= ?
+           ORDER BY completed_on DESC""",
+        (uid, current_day.isoformat()),
+    ).fetchall()
+    completed_days = {date.fromisoformat(str(row["completed_on"])) for row in rows}
+
+    if current_day in completed_days:
+        status = "completed"
+        cursor = current_day
+    elif current_day - timedelta(days=1) in completed_days:
+        status = "pending"
+        cursor = current_day - timedelta(days=1)
+    else:
+        return {"status": "inactive", "streak": 0}
+
+    streak = 0
+    while cursor in completed_days:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return {"status": status, "streak": streak}
+
 def parse_optional_topic(raw: Any) -> int | None:
     if raw in (None, "", "all"):
         return None
@@ -192,6 +219,9 @@ def home_data():
             }
         )
 
+    daily_test = daily_test_summary(uid)
+    daily_test["available"] = sum(topic["total"] for topic in topics) >= DAILY_TEST_QUESTION_COUNT
+
     today = madrid_today()
     current_monday = today - timedelta(days=today.weekday())
     start = current_monday - timedelta(days=21)
@@ -237,8 +267,56 @@ def home_data():
             "unique_correct": int(unique_correct),
             "activity": activity,
             "topics": topics,
+            "daily_test": daily_test,
         }
     )
+
+@router.post("/api/daily-test")
+@require_auth
+def create_daily_test():
+    valid, error = require_csrf()
+    if not valid:
+        return error
+
+    db = get_db()
+    uid = user_id()
+    today = madrid_today().isoformat()
+    allowed_topics = current_topic_ids()
+
+    completed = db.execute(
+        "SELECT 1 FROM daily_tests WHERE user_id = ? AND completed_on = ?",
+        (uid, today),
+    ).fetchone()
+    if completed:
+        return api_error("Ya has completado el test del día.", 409, "DAILY_TEST_COMPLETED")
+
+    if not allowed_topics:
+        return api_error("No hay temas disponibles para el test del día.", 409, "NOT_ENOUGH_QUESTIONS")
+
+    placeholders = ",".join("?" for _ in allowed_topics)
+    rows = db.execute(
+        f"""SELECT id FROM questions
+            WHERE topic_id IN ({placeholders})
+            ORDER BY RANDOM() LIMIT ?""",
+        [*allowed_topics, DAILY_TEST_QUESTION_COUNT],
+    ).fetchall()
+    if len(rows) < DAILY_TEST_QUESTION_COUNT:
+        return api_error(
+            f"Necesitas al menos {DAILY_TEST_QUESTION_COUNT} preguntas disponibles para hacer el test del día.",
+            409,
+            "NOT_ENOUGH_QUESTIONS",
+        )
+
+    questions = [get_question_payload(int(row["id"])) for row in rows]
+    if any(question is None for question in questions):
+        return api_error("Alguna pregunta no está correctamente configurada.", 409)
+
+    return api_ok({
+        "submission_id": secrets.token_urlsafe(18),
+        "topic_ids": allowed_topics,
+        "questions": questions,
+        "daily_test": True,
+    }, 201)
 
 @router.get("/api/practice/question")
 @require_auth

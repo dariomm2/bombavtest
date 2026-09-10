@@ -1,6 +1,34 @@
 services:
+  seed-demo:
+    image: bombavtest-local
+    pull_policy: never
+    environment:
+      BOMBAVTEST_DB_PATH: /data/app.db
+      BOMBAVTEST_ADMIN_USERNAME: admin
+      BOMBAVTEST_ADMIN_PASSWORD: admin
+      BOMBAVTEST_ADMIN_DISPLAY_NAME: Admin
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: bombavtest
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_REGION: us-east-1
+      S3_ADDRESSING_STYLE: path
+    volumes:
+      - app-data:/data
+      - ./scripts/seed_demo.py:/tmp/seed_demo.py:ro
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        yoyo --no-config-file --batch apply --database "sqlite:////data/app.db" migrations
+        python /tmp/seed_demo.py
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
   app:
     build: .
+    image: bombavtest-local
     ports:
       - "8000:8000"
     environment:
@@ -17,7 +45,7 @@ services:
     volumes:
       - app-data:/data
     depends_on:
-      minio-init:
+      seed-demo:
         condition: service_completed_successfully
 
   minio:

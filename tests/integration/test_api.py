@@ -170,6 +170,7 @@ def test_simulation_finish_is_idempotent(admin, app_env: Path, user_factory, que
     first = response_data(user.post("/api/simulations/finish", headers=user_headers, json=payload))
     retry = response_data(user.post("/api/simulations/finish", headers=user_headers, json=payload))
     assert first["incorrect"] == 1 and retry == first
+    assert response_data(user.get("/api/home"))["daily_test"]["status"] == "inactive"
     with sqlite3.connect(app_env) as db:
         assert db.execute("SELECT COUNT(*) FROM attempts WHERE user_id = ? AND source = 'simulation'", (uid,)).fetchone()[0] == 1
 

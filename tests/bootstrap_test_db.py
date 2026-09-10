@@ -7,7 +7,10 @@ from pathlib import Path
 from backend.auth import hash_password
 
 DB_PATH = Path(os.environ.get("BOMBAVTEST_DB_PATH", "/data/app.db"))
-SCHEMA_PATH = Path("/app/migrations/001_create_schema.sql")
+SCHEMA_PATHS = [
+    Path("/app/migrations/001_create_schema.sql"),
+    Path("/app/migrations/003_create_daily_tests.sql"),
+]
 
 username = os.environ.get("BOMBAVTEST_ADMIN_USERNAME", "test-admin")
 password = os.environ.get("BOMBAVTEST_ADMIN_PASSWORD", "TestAdmin123")
@@ -16,7 +19,8 @@ display_name = os.environ.get("BOMBAVTEST_ADMIN_DISPLAY_NAME", "Test Admin")
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 with sqlite3.connect(DB_PATH) as db:
-    db.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    for schema_path in SCHEMA_PATHS:
+        db.executescript(schema_path.read_text(encoding="utf-8"))
 
     # System/E2E data belongs to the test environment, not to migrations.
     db.execute(

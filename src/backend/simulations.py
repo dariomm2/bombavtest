@@ -7,9 +7,15 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from .auth import api_error, api_ok, clean_submission_key, json_body, require_auth, require_csrf, user_id, utc_iso
+from .auth import (
+    api_error, api_ok, clean_submission_key, json_body, madrid_today,
+    require_auth, require_csrf, user_id, utc_iso,
+)
 from .db import get_db
-from .practice import current_topic_ids, ensure_topic_access, get_question_payload, topic_filter_clause
+from .practice import (
+    DAILY_TEST_QUESTION_COUNT, current_topic_ids, ensure_topic_access,
+    get_question_payload, topic_filter_clause,
+)
 
 router = APIRouter()
 
@@ -90,8 +96,10 @@ def finish_simulation():
         return error
     data = json_body() or {}
     raw_answers = data.get("answers")
+    raw_submission_id = str(data.get("submission_id") or "").strip()
+    is_daily_test = data.get("daily_test") is True
     try:
-        submission_id = clean_submission_key(data.get("submission_id"), "simulation")
+        submission_id = clean_submission_key(raw_submission_id, "simulation")
     except ValueError as exc:
         return api_error(str(exc))
     if not isinstance(raw_answers, list) or not 1 <= len(raw_answers) <= 1000:
@@ -113,10 +121,15 @@ def finish_simulation():
     except (TypeError, ValueError):
         return api_error("Las respuestas del simulacro no son válidas.")
 
+    if is_daily_test and len(parsed) != DAILY_TEST_QUESTION_COUNT:
+        return api_error(f"El test del día debe tener {DAILY_TEST_QUESTION_COUNT} preguntas.")
+
     db = get_db()
+    uid = user_id()
+    question_ids = [question_id for question_id, _ in parsed]
+
     allowed_topics = current_topic_ids()
     access_clause, access_params = topic_filter_clause(allowed_topics, "q.topic_id")
-    question_ids = [question_id for question_id, _ in parsed]
     placeholders = ",".join("?" for _ in question_ids)
     rows = db.execute(
         f"""
@@ -164,7 +177,7 @@ def finish_simulation():
         else:
             outcome = "incorrect"
             incorrect += 1
-        attempts.append((user_id(), question_id, outcome, "simulation", f"{submission_id}:{position}", now))
+        attempts.append((uid, question_id, outcome, "simulation", f"{submission_id}:{position}", now))
         review.append({
             "position": position,
             "id": question_id,
@@ -182,24 +195,48 @@ def finish_simulation():
 
     try:
         db.execute("BEGIN IMMEDIATE")
+        if is_daily_test:
+            completed_on = madrid_today().isoformat()
+            completed = db.execute(
+                "SELECT 1 FROM daily_tests WHERE user_id = ? AND completed_on = ?",
+                (uid, completed_on),
+            ).fetchone()
+            if completed:
+                db.rollback()
+                existing = int(db.execute(
+                    "SELECT COUNT(*) FROM attempts WHERE user_id = ? AND submission_key LIKE ?",
+                    (uid, f"{submission_id}:%"),
+                ).fetchone()[0])
+                if existing == len(parsed):
+                    return api_ok({
+                        "correct": correct, "incorrect": incorrect, "skipped": skipped,
+                        "total": len(parsed), "review": review, "daily_test": True,
+                    })
+                return api_error("Ya has completado el test del día.", 409, "DAILY_TEST_COMPLETED")
+
         db.executemany(
             """INSERT INTO attempts(user_id, question_id, outcome, source, submission_key, created_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
             attempts,
         )
+        if is_daily_test:
+            db.execute(
+                "INSERT INTO daily_tests(user_id, completed_on) VALUES (?, ?)",
+                (uid, completed_on),
+            )
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
         # Same finish request retried: do not duplicate the history.
         existing = int(db.execute(
             "SELECT COUNT(*) FROM attempts WHERE user_id = ? AND submission_key LIKE ?",
-            (user_id(), f"{submission_id}:%"),
+            (uid, f"{submission_id}:%"),
         ).fetchone()[0])
         if existing != len(parsed):
             return api_error("No se ha podido guardar el simulacro.", 409)
 
     return api_ok({
         "correct": correct, "incorrect": incorrect, "skipped": skipped,
-        "total": len(parsed), "review": review,
+        "total": len(parsed), "review": review, "daily_test": is_daily_test,
     })
 
