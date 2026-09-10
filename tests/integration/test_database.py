@@ -29,7 +29,11 @@ def test_initial_schema_and_sqlite_pragmas(app_env: Path):
             "user_topics",
             "topic_attachments",
             "topic_attachment_drafts",
+            "daily_tests",
         } <= tables
+        assert [
+            row[1] for row in db.execute("PRAGMA table_info(daily_tests)").fetchall()
+        ] == ["id", "user_id", "completed_on"]
     finally:
         db.close()
 

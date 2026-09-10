@@ -8,6 +8,7 @@ def test_sensitive_mutations_require_csrf(admin):
         ("post", "/api/logout", {"json": {}}),
         ("post", "/api/answers", {"json": {}}),
         ("post", "/api/simulations", {"json": {}}),
+        ("post", "/api/daily-test", {}),
         ("post", "/api/simulations/finish", {"json": {}}),
         ("post", "/api/admin/topics", {"json": {}}),
         ("put", "/api/admin/topics/1", {"json": {}}),

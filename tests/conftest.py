@@ -21,6 +21,7 @@ def apply_schema(db_path: Path) -> None:
     db = sqlite3.connect(db_path)
     try:
         db.executescript((ROOT / "migrations" / "001_create_schema.sql").read_text(encoding="utf-8"))
+        db.executescript((ROOT / "migrations" / "003_create_daily_tests.sql").read_text(encoding="utf-8"))
         # Test data is owned by the test suite, never by data migrations.
         db.execute(
             """
