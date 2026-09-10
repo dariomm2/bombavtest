@@ -61,16 +61,38 @@ def test_simulation_can_be_completed_and_reviewed(
     admin_client, headers = live_admin
     topic = live_topic_factory(admin_client, headers)
     question = live_question_factory(admin_client, headers, topic_id=topic["id"])
+    second_question = live_question_factory(admin_client, headers, topic_id=topic["id"])
+    questions = {item["text"]: item for item in (question, second_question)}
     user = live_user_factory(admin_client, headers, topic_ids=[topic["id"]])
 
     login(page, user["username"], user["password"])
     page.locator(f'[data-topic-exam="{topic["id"]}"]').click()
     expect(page.locator("#examIntroModal")).to_be_visible()
-    page.locator("#examQuestionCount").fill("1")
+    page.locator("#examQuestionCount").fill("2")
     page.locator("#confirmExamBtn").click()
 
-    expect(page.locator("#questionTitle")).to_have_text(question["text"])
-    page.locator(f'[data-option-id="{question["correct_id"]}"]').click()
+    previous_button = page.locator("#previousQuestionBtn")
+    next_button = page.locator("#nextQuestionBtn")
+    expect(previous_button).to_be_visible()
+    expect(previous_button).to_be_disabled()
+    assert previous_button.bounding_box()["width"] == next_button.bounding_box()["width"]
+
+    first_question = questions[page.locator("#questionTitle").inner_text()]
+    first_answer = page.locator(f'[data-option-id="{first_question["correct_id"]}"]')
+    first_answer.click()
+    next_button.click()
+
+    expect(previous_button).to_be_enabled()
+    previous_button.click()
+    expect(page.locator("#questionTitle")).to_have_text(first_question["text"])
+    expect(first_answer).to_have_class("answer selected")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert previous_button.bounding_box()["width"] == next_button.bounding_box()["width"]
+
+    next_button.click()
+    final_question = questions[page.locator("#questionTitle").inner_text()]
+    page.locator(f'[data-option-id="{final_question["correct_id"]}"]').click()
     page.locator("#nextQuestionBtn").click()
 
     expect(page.locator("#reviewView")).to_be_visible()

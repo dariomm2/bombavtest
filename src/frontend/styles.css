@@ -874,6 +874,19 @@
 .text-action:hover { color: var(--text); }
 .question-chips { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .question-footer { justify-content: flex-end; }
+.question-page-layout.exam-active .question-footer { justify-content: space-between; }
+.question-page-layout.exam-active .question-footer .btn {
+  width: 148px;
+  flex: 0 0 148px;
+}
+
+@media (max-width: 720px) {
+  .question-page-layout.exam-active .question-footer .btn {
+    width: 0;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
 
 .loading-block {
   min-height: 160px;

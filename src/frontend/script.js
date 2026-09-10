@@ -1150,6 +1150,8 @@ function renderQuestion() {
   byId('questionTitle').textContent = question.text;
   byId('questionFeedback').className = 'feedback';
   byId('questionFeedback').innerHTML = '';
+  byId('previousQuestionBtn').hidden = !isExam;
+  byId('previousQuestionBtn').disabled = !isExam || session.index === 0;
   byId('nextQuestionBtn').disabled = !isExam;
   byId('nextQuestionBtn').classList.toggle('exam-next-button', isExam);
   byId('nextQuestionBtn').innerHTML = isExam && session.index === session.questions.length - 1
@@ -1286,6 +1288,12 @@ function navigateExamQuestion(index) {
   session.selectedOptionId = session.answers[target] ?? null;
   renderQuestion();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function previousQuestion() {
+  const session = state.session;
+  if (!session || session.mode !== 'exam') return;
+  navigateExamQuestion(session.index - 1);
 }
 
 async function nextQuestion() {
@@ -3501,6 +3509,7 @@ function bindEvents() {
     renderStatsUserResults();
   });
   byId('exitQuestionBtn').addEventListener('click', exitQuestions);
+  byId('previousQuestionBtn').addEventListener('click', previousQuestion);
   byId('nextQuestionBtn').addEventListener('click', nextQuestion);
   byId('progressTopicSelect').addEventListener('change', event => { syncTopicSelectStyle(event.target); updateCharts(); });
   byId('winrateTopicSelect').addEventListener('change', event => { syncTopicSelectStyle(event.target); updateCharts(); });
