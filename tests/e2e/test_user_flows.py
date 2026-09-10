@@ -34,6 +34,11 @@ def test_practice_answer_and_statistics_flow(
     user = live_user_factory(admin_client, headers, topic_ids=[topic["id"]])
 
     login(page, user["username"], user["password"])
+    expect(page.locator("#onlyPending")).not_to_be_checked()
+    expect(page.locator("#questionModeLabel")).to_have_text("Todas las preguntas")
+    page.locator("#questionModeControl").click()
+    expect(page.locator("#onlyPending")).to_be_checked()
+    expect(page.locator("#questionModeLabel")).to_have_text("Solo pendientes y falladas")
     page.locator(f'[data-topic-play="{topic["id"]}"]').click()
     expect(page.locator("#questionTitle")).to_have_text(question["text"])
 

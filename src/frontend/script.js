@@ -339,7 +339,7 @@ function preparePracticeFeedback(question) {
 }
 
 function currentPracticeMode() {
-  return byId('repeatCorrect')?.checked ? 'all' : 'pending';
+  return byId('onlyPending')?.checked ? 'pending' : 'all';
 }
 
 function resetPracticePreload() {
@@ -452,11 +452,11 @@ function applyTheme(theme) {
   document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0d1517' : '#0f766e');
 }
 
-function updateQuestionModeLabel(showAll) {
-  byId('questionModeLabel').textContent = showAll ? 'Todas las preguntas' : 'Solo pendientes y falladas';
-  byId('questionModeControl').title = showAll
-    ? 'También pueden aparecer preguntas que ya has acertado'
-    : 'Se omiten las preguntas que ya has acertado';
+function updateQuestionModeLabel(onlyPending) {
+  byId('questionModeLabel').textContent = onlyPending ? 'Solo pendientes y falladas' : 'Todas las preguntas';
+  byId('questionModeControl').title = onlyPending
+    ? 'Se omiten las preguntas que ya has acertado'
+    : 'También pueden aparecer preguntas que ya has acertado';
 }
 
 function showToast(message) {
@@ -1006,7 +1006,7 @@ async function startPractice(topicIds = []) {
 
 function practiceRequestParams(session, count = 1, excludeIds = []) {
   const params = new URLSearchParams();
-  params.set('mode', byId('repeatCorrect').checked ? 'all' : 'pending');
+  params.set('mode', currentPracticeMode());
   if (session.topicIds?.length) params.set('topic_ids', session.topicIds.join(','));
   params.set('count', String(Math.max(1, Math.min(3, Number(count) || 1))));
   const excludes = [...new Set(excludeIds.map(Number).filter(Number.isFinite))];
@@ -3441,12 +3441,12 @@ function bindEvents() {
     applyTheme(next);
     safeStorageSet('opotest-theme', next);
   });
-  byId('repeatCorrect').addEventListener('change', event => {
+  byId('onlyPending').addEventListener('change', event => {
     updateQuestionModeLabel(event.target.checked);
-    safeStorageSet('opotest-repeat-correct', String(event.target.checked));
+    safeStorageSet('opotest-only-pending', String(event.target.checked));
     resetPracticePreload();
     void primePracticePreload();
-    showToast(event.target.checked ? 'Se mostrarán todas las preguntas.' : 'Se ocultarán las preguntas ya acertadas.');
+    showToast(event.target.checked ? 'Se ocultarán las preguntas ya acertadas.' : 'Se mostrarán todas las preguntas.');
   });
   byId('playAllBtn').addEventListener('click', preparePractice);
   byId('startTopicExamBtn').addEventListener('click', () => prepareExam(null, 'multi'));
@@ -3720,9 +3720,9 @@ async function init() {
   const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
 
-  const savedRepeat = safeStorageGet('opotest-repeat-correct') === 'true';
-  byId('repeatCorrect').checked = savedRepeat;
-  updateQuestionModeLabel(savedRepeat);
+  const savedOnlyPending = safeStorageGet('opotest-only-pending') === 'true';
+  byId('onlyPending').checked = savedOnlyPending;
+  updateQuestionModeLabel(savedOnlyPending);
   bindEvents();
   setupModalScrollFades();
   setupFormUx(document);
