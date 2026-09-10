@@ -88,12 +88,18 @@
             </div>
           </article>
 
-          <aside class="activity-card" aria-label="Actividad de las últimas cuatro semanas">
-            <div class="activity-summary">
-              <div>
-                <div class="activity-total-label">Preguntas respondidas en total</div>
-                <div class="activity-total" id="totalAnsweredValue">0</div>
+          <aside class="activity-card" aria-label="Racha de tests del día y actividad de las últimas cuatro semanas">
+            <div class="daily-streak-summary" id="dailyStreakSummary" data-status="inactive">
+              <div class="daily-streak-label">Racha de tests del día</div>
+              <div class="daily-streak-visual" id="dailyStreakVisual" role="img" aria-label="Racha inactiva, 0 días">
+                <svg class="daily-streak-flame" viewBox="0 0 256 256" aria-hidden="true">
+                  <g transform="scale(5.3333333)">
+                    <path d="M24 44C32.2347 44 38.9998 37.4742 38.9998 29.0981C38.9998 27.0418 38.8953 24.8375 37.7555 21.4116C36.6157 17.9858 36.3861 17.5436 35.1809 15.4279C34.666 19.7454 31.911 21.5448 31.2111 22.0826C31.2111 21.5231 29.5445 15.3359 27.0176 11.6339C24.537 8 21.1634 5.61592 19.1853 4C19.1853 7.06977 18.3219 11.6339 17.0854 13.9594C15.8489 16.2849 15.6167 16.3696 14.0722 18.1002C12.5278 19.8308 11.8189 20.3653 10.5274 22.4651C9.23596 24.565 9 27.3618 9 29.4181C9 37.7942 15.7653 44 24 44Z"/>
+                  </g>
+                  <text class="daily-streak-value" id="dailyStreakValue" x="128" y="171" text-anchor="middle">0</text>
+                </svg>
               </div>
+              <button class="btn daily-test-button" id="startDailyTestBtn" type="button" disabled>Test del día</button>
             </div>
             <div class="heatmap-wrap">
               <div class="calendar-heatmap" id="homeHeatmap"></div>

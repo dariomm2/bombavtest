@@ -99,3 +99,52 @@ def test_simulation_can_be_completed_and_reviewed(
     expect(page.locator("#reviewTitle")).to_have_text("Simulacro finalizado")
     expect(page.locator("#reviewSummary")).to_contain_text("100 %")
     expect(page.locator("#reviewSummary")).to_contain_text("Correctas")
+
+
+def test_daily_test_starts_and_completes_the_streak(
+    page: Page, live_admin, live_topic_factory, live_question_factory, live_user_factory
+):
+    admin_client, headers = live_admin
+    topic = live_topic_factory(admin_client, headers)
+    questions = [live_question_factory(admin_client, headers, topic_id=topic["id"]) for _ in range(10)]
+    questions_by_text = {question["text"]: question for question in questions}
+    user = live_user_factory(admin_client, headers, topic_ids=[topic["id"]])
+
+    login(page, user["username"], user["password"])
+    daily_button = page.locator("#startDailyTestBtn")
+    expect(page.locator("#dailyStreakSummary")).to_have_attribute("data-status", "inactive")
+    expect(page.locator("#dailyStreakValue")).to_have_text("0")
+    expect(page.locator("#dailyStreakValue")).to_have_css("fill", "rgb(255, 255, 255)")
+    expect(daily_button).to_be_enabled()
+    expect(daily_button).to_have_css("background-color", "rgb(255, 241, 230)")
+    expect(daily_button).to_have_css("border-top-width", "0px")
+    expect(daily_button).to_have_css("color", "rgb(21, 35, 38)")
+    assert page.eval_on_selector(
+        "#startDailyTestBtn", "button => getComputedStyle(button, '::after').backgroundColor"
+    ) == "rgb(239, 68, 68)"
+    flame = page.locator("#dailyStreakVisual")
+    assert flame.bounding_box()["width"] == 124
+    assert daily_button.bounding_box()["width"] == page.locator("#dailyStreakSummary").bounding_box()["width"]
+    assert daily_button.bounding_box()["y"] >= flame.bounding_box()["y"] + flame.bounding_box()["height"]
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert flame.bounding_box()["width"] == 100
+    assert daily_button.bounding_box()["width"] == page.locator("#dailyStreakSummary").bounding_box()["width"]
+    assert daily_button.bounding_box()["y"] >= flame.bounding_box()["y"] + flame.bounding_box()["height"]
+    daily_button.click()
+
+    expect(page.locator("#questionModeChip")).to_have_text("Test del día")
+    for index in range(10):
+        current = questions_by_text[page.locator("#questionTitle").inner_text()]
+        page.locator(f'[data-option-id="{current["correct_id"]}"]').click()
+        page.locator("#nextQuestionBtn").click()
+        if index < 9:
+            expect(page.locator("#questionCounter")).to_have_text(f"Pregunta {index + 2} de 10")
+
+    expect(page.locator("#reviewTitle")).to_have_text("Test del día completado")
+    page.locator("#reviewHomeBtn").click()
+    expect(page.locator("#homeView")).to_be_visible()
+    expect(page.locator("#dailyStreakSummary")).to_have_attribute("data-status", "completed")
+    expect(page.locator("#dailyStreakValue")).to_have_text("1")
+    expect(page.locator(".daily-streak-flame path")).to_have_css("fill", "rgb(249, 115, 22)")
+    expect(daily_button).to_be_hidden()

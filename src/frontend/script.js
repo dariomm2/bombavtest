@@ -489,12 +489,17 @@ function skeletonHeatmapHtml() {
 
 function renderHomeSkeleton() {
   const title = byId('homeTitle');
-  const total = byId('totalAnsweredValue');
+  const streak = byId('dailyStreakValue');
+  const dailyButton = byId('startDailyTestBtn');
   const heatmap = byId('homeHeatmap');
   const range = byId('homeHeatmapRange');
   const grid = byId('topicsGrid');
   if (title) title.innerHTML = '<span class="skeleton-block skeleton-home-title"></span>';
-  if (total) total.innerHTML = '<span class="skeleton-block skeleton-number"></span>';
+  if (streak) streak.textContent = '';
+  if (dailyButton) {
+    dailyButton.hidden = false;
+    dailyButton.disabled = true;
+  }
   if (heatmap) {
     heatmap.classList.add('is-loading-heatmap');
     heatmap.innerHTML = skeletonHeatmapHtml();
@@ -877,7 +882,21 @@ function renderHome() {
   const data = state.home;
   if (!data) return;
   byId('homeTitle').textContent = `Hola, ${data.user.display_name}.`;
-  byId('totalAnsweredValue').textContent = formatNumber(data.total_answered);
+  const dailyTest = data.daily_test || { status: 'inactive', streak: 0, available: false };
+  const streak = Math.max(0, Number(dailyTest.streak) || 0);
+  const status = ['inactive', 'pending', 'completed'].includes(dailyTest.status) ? dailyTest.status : 'inactive';
+  const streakSummary = byId('dailyStreakSummary');
+  const dailyButton = byId('startDailyTestBtn');
+  streakSummary.dataset.status = status;
+  byId('dailyStreakValue').textContent = formatNumber(streak);
+  byId('dailyStreakVisual').setAttribute('aria-label', status === 'completed'
+    ? `Racha activa de ${streak} días, test de hoy completado`
+    : status === 'pending'
+      ? `Racha activa de ${streak} días, test de hoy pendiente`
+      : 'Racha inactiva, 0 días');
+  dailyButton.hidden = status === 'completed';
+  dailyButton.disabled = !dailyTest.available;
+  dailyButton.title = dailyTest.available ? 'Empezar el simulacro diario de 10 preguntas' : 'Necesitas al menos 10 preguntas disponibles';
   renderHeatmap(data.activity);
   renderTopics(data.topics);
 }
@@ -1134,7 +1153,7 @@ function renderQuestion() {
   chip.hidden = isExam;
   if (topicMeta) topicMeta.hidden = isExam;
 
-  byId('questionModeChip').textContent = isExam ? 'Simulacro' : 'Práctica';
+  byId('questionModeChip').textContent = session.dailyTest ? 'Test del día' : isExam ? 'Simulacro' : 'Práctica';
   byId('questionModeChip').classList.toggle('exam', isExam);
   byId('questionProgress').hidden = !isExam;
 
@@ -1502,7 +1521,6 @@ async function startExam() {
   }
 
   try {
-    state.examReview = null;
     const data = await api('/api/simulations', {
       method: 'POST',
       body: {
@@ -1510,25 +1528,45 @@ async function startExam() {
         question_count: pending.questionCount
       }
     });
-    state.session = {
-      mode: 'exam',
-      submissionId: data.submission_id,
-      topicIds: data.topic_ids || [],
-      questions: data.questions,
-      index: 0,
-      selectedOptionId: null,
-      answers: Array(data.questions.length).fill(null),
-      submitting: false,
-      locked: false
-    };
     closeModal('examIntroModal');
-    await setView('question', true);
-    renderQuestion();
+    await openExamSession(data);
   } catch (error) {
     byId('examConfigError').textContent = error.message;
   } finally {
     button.disabled = false;
     updateExamConfig({ clamp: false });
+  }
+}
+
+async function openExamSession(data) {
+  state.examReview = null;
+  state.session = {
+    mode: 'exam',
+    dailyTest: Boolean(data.daily_test),
+    submissionId: data.submission_id,
+    topicIds: data.topic_ids || [],
+    questions: data.questions,
+    index: 0,
+    selectedOptionId: null,
+    answers: Array(data.questions.length).fill(null),
+    submitting: false,
+    locked: false
+  };
+  await setView('question', true);
+  renderQuestion();
+}
+
+async function startDailyTest() {
+  const button = byId('startDailyTestBtn');
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    const data = await api('/api/daily-test', { method: 'POST' });
+    await openExamSession(data);
+  } catch (error) {
+    if (error.status !== 401) showToast(error.message);
+    state.home = null;
+    await loadHome();
   }
 }
 
@@ -1543,6 +1581,7 @@ async function finishExam() {
       method: 'POST',
       body: {
         submission_id: session.submissionId,
+        daily_test: session.dailyTest,
         answers: session.questions.map((question, index) => ({
           question_id: question.id,
           selected_option_id: session.answers[index] ?? null
@@ -1551,7 +1590,7 @@ async function finishExam() {
     });
     state.home = null;
     state.stats = null;
-    state.examReview = { ...result, collapsedCorrect: true };
+    state.examReview = { ...result, dailyTest: Boolean(session.dailyTest), collapsedCorrect: true };
     state.session = null;
     await setView('review', true);
   } catch (error) {
@@ -1627,6 +1666,7 @@ function renderReviewNavigator() {
 function renderExamReview() {
   const review = state.examReview;
   if (!review?.review) return;
+  byId('reviewTitle').textContent = review.dailyTest ? 'Test del día completado' : 'Simulacro finalizado';
   review.collapsedCorrect = true;
   renderReviewSummary(review);
   byId('reviewList').innerHTML = review.review.map(question => reviewQuestionHtml(question, true)).join('');
@@ -3458,6 +3498,7 @@ function bindEvents() {
   });
   byId('playAllBtn').addEventListener('click', preparePractice);
   byId('startTopicExamBtn').addEventListener('click', () => prepareExam(null, 'multi'));
+  byId('startDailyTestBtn').addEventListener('click', startDailyTest);
   byId('confirmExamBtn').addEventListener('click', startExam);
   byId('examSelectAllTopicsBtn').addEventListener('click', toggleAllExamTopics);
   byId('examDeselectAllTopicsBtn').addEventListener('click', deselectAllExamTopics);
